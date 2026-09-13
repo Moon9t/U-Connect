@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: uconnect-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DB_PATH=/app/data/uconnect.db
+      - JWT_SECRET=uconnect_production_secure_jwt_secret_token_key_2024
+      - JWT_EXPIRATION_HOURS=24
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080,http://127.0.0.1:8080
+      - GIN_MODE=release
+      - BCRYPT_COST=14
+    volumes:
+      - uconnect_data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  uconnect_data:
+    driver: local
