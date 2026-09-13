@@ -1,0 +1,54 @@
+# ==============================================================================
+# U-Connect Repository Code Owners
+# ==============================================================================
+# This file defines team members and accounts responsible for reviewing and
+# approving code changes across different subsystems in the U-Connect project.
+#
+# Rules:
+# - Changes to path patterns require approval from the designated code owner(s).
+# - Syntactic order matters: later matching rules override earlier ones.
+# ==============================================================================
+
+# Default global owners (Entire repository)
+* @Moon9t
+
+# ------------------------------------------------------------------------------
+# Backend System (Go 1.21, Gin, GORM, SQLite, JWT Auth, SLA Engine)
+# Primary Owner & Approver: @Moon9t
+# ------------------------------------------------------------------------------
+/backend/                       @Moon9t
+/backend/cmd/                   @Moon9t
+/backend/internal/              @Moon9t
+/backend/internal/models/       @Moon9t
+/backend/internal/services/     @Moon9t
+/backend/internal/repositories/ @Moon9t
+/backend/internal/handlers/     @Moon9t
+/backend/internal/middleware/   @Moon9t
+/backend/internal/routes/       @Moon9t
+/backend/migrations/            @Moon9t
+/backend/tests/                 @Moon9t
+/backend/go.mod                 @Moon9t
+/backend/go.sum                 @Moon9t
+/backend/Dockerfile             @Moon9t
+
+# ------------------------------------------------------------------------------
+# Frontend System (Vite, React 19, TypeScript, Lucide Icons, Vanilla CSS)
+# ------------------------------------------------------------------------------
+/frontend/                      @Moon9t
+/frontend/src/                  @Moon9t
+/frontend/src/components/       @Moon9t
+/frontend/src/pages/            @Moon9t
+/frontend/src/services/         @Moon9t
+/frontend/src/context/          @Moon9t
+/frontend/src/types/            @Moon9t
+/frontend/package.json          @Moon9t
+/frontend/vite.config.ts        @Moon9t
+/frontend/tsconfig*.json        @Moon9t
+
+# ------------------------------------------------------------------------------
+# Project Documentation & Architecture
+# ------------------------------------------------------------------------------
+/docs/                          @Moon9t
+/README.md                      @Moon9t
+/CONTRIBUTING.md                @Moon9t
+/.github/                       @Moon9t
