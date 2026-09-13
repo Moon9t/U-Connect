@@ -10,7 +10,7 @@
 
 ---
 
-## 🏛 System Architecture
+## System Architecture
 
 ```
                                  [ Browser Client ]
@@ -40,7 +40,7 @@
 
 ---
 
-## ✨ Key Features & Business Rules
+## Key Features & Business Rules
 
 1. **Automated Escalation (Rule 1)**: Automatically escalates Exam Hall and Safety grievances to `high` priority; overrides with `critical` when urgent emergency keywords (*emergency*, *urgent*, *critical*, *immediate*, *danger*) are detected.
 2. **Strict Transition State Machine (Rule 2)**: Enforces complaint workflow progression:
@@ -55,7 +55,7 @@
 
 ---
 
-## 📦 Tech Stack
+## Tech Stack
 
 | Layer | Technologies | Purpose |
 |---|---|---|
@@ -67,7 +67,7 @@
 
 ---
 
-## 🚀 Quickstart Guide
+## Quickstart Guide
 
 ### 1. Prerequisites
 - **Go 1.21+**
@@ -101,7 +101,7 @@ npm run dev
 
 ---
 
-## 🔑 Demo Accounts & Seeded Credentials
+## Demo Accounts & Seeded Credentials
 
 All accounts share the default password: **`password123`**
 
@@ -116,7 +116,7 @@ All accounts share the default password: **`password123`**
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 
 ```
 U-Connect/
@@ -154,7 +154,7 @@ U-Connect/
 
 ---
 
-## 👥 Engineering Team & Governance
+## Engineering Team & Governance
 
 - **Backend Lead & Core Architect**: **@Moon9t** (Code owner for `/backend/`)
 - For contribution workflows, PR guidelines, and branch strategies, refer to [**`CONTRIBUTING.md`**](CONTRIBUTING.md).
