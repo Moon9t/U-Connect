@@ -7,9 +7,10 @@ import { Plus, Search, Filter } from 'lucide-react';
 
 interface MyComplaintsPageProps {
   onNavigateToSubmit: () => void;
+  initialComplaintId?: number;
 }
 
-export const MyComplaintsPage: React.FC<MyComplaintsPageProps> = ({ onNavigateToSubmit }) => {
+export const MyComplaintsPage: React.FC<MyComplaintsPageProps> = ({ onNavigateToSubmit, initialComplaintId }) => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -20,6 +21,17 @@ export const MyComplaintsPage: React.FC<MyComplaintsPageProps> = ({ onNavigateTo
   useEffect(() => {
     loadComplaints();
   }, [statusFilter]);
+
+  useEffect(() => {
+    if (!initialComplaintId) return;
+
+    complaintService.getComplaint(initialComplaintId).then((complaint) => {
+      setSelectedComplaint(complaint);
+      setIsModalOpen(true);
+    }).catch(() => {
+      // The complaint may no longer be available to the current user.
+    });
+  }, [initialComplaintId]);
 
   const loadComplaints = async () => {
     setIsLoading(true);

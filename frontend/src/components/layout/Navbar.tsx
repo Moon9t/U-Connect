@@ -15,9 +15,10 @@ import {
 
 interface NavbarProps {
   onNavigateToProfile?: () => void;
+  onNavigateToComplaints?: (complaintId?: number) => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile, onNavigateToComplaints }) => {
   const { user, role, logout, switchDemoUser } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -54,15 +55,19 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
   };
 
   const markNotificationAsRead = async (notification: Notification) => {
-    if (notification.read_at) return;
-    try {
-      await notificationService.markAsRead(notification.id);
-      setNotifications((current) => current.map((item) => item.id === notification.id
-        ? { ...item, read_at: new Date().toISOString() }
-        : item));
-    } catch {
-      // Keep the notification unread when the server update fails.
+    if (!notification.read_at) {
+      try {
+        await notificationService.markAsRead(notification.id);
+        setNotifications((current) => current.map((item) => item.id === notification.id
+          ? { ...item, read_at: new Date().toISOString() }
+          : item));
+      } catch {
+        // Keep the notification unread when the server update fails.
+      }
     }
+
+    setNotificationsOpen(false);
+    onNavigateToComplaints?.(notification.related_complaint_id);
   };
 
   const markAllNotificationsAsRead = async () => {
@@ -262,7 +267,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
                 </button>
               </div>
 
-              <div>
+              <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
                 {notificationsLoading && (
                   <div style={{ padding: '18px 16px', color: '#71717a', fontSize: '0.8rem' }}>
                     Loading notifications...
@@ -282,7 +287,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
                       borderBottom: '1px solid #f4f4f5',
                       fontSize: '0.8rem',
                       backgroundColor: n.read_at ? '#ffffff' : '#fafafa',
-                      cursor: n.read_at ? 'default' : 'pointer',
+                      cursor: 'pointer',
                     }}
                   >
                     <div style={{ fontWeight: n.read_at ? 500 : 700, color: '#18181b' }}>{n.title}</div>

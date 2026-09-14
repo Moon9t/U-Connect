@@ -121,6 +121,19 @@ func (s *ComplaintService) CreateComplaint(
 		RelatedComplaintID: &complaint.ID,
 	}).Error
 
+	var admins []models.User
+	if err := s.db.Where("role = ? AND id <> ?", models.RoleAdmin, userID).Find(&admins).Error; err == nil {
+		for _, admin := range admins {
+			_ = s.db.Create(&models.Notification{
+				UserID:             admin.ID,
+				Type:               "complaint-review",
+				Title:              "New complaint requires review",
+				Description:        fmt.Sprintf("Complaint %q was submitted and is ready for review.", complaint.Title),
+				RelatedComplaintID: &complaint.ID,
+			}).Error
+		}
+	}
+
 	// Determine examiner visibility message
 	var message string
 	if complaint.Priority == models.PriorityCritical {
