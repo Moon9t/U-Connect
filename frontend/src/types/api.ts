@@ -43,6 +43,18 @@ export interface Comment {
   created_at: string;
 }
 
+export interface Notification {
+  id: number;
+  user_id: number;
+  type: string;
+  title: string;
+  description: string;
+  related_complaint_id?: number;
+  read_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Complaint {
   id: number;
   title: string;

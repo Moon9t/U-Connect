@@ -48,12 +48,14 @@ func main() {
 	authService := services.NewAuthService(db, userRepo)
 	complaintService := services.NewComplaintService(db, complaintRepo, deptRepo)
 	dashboardService := services.NewDashboardService(db, complaintRepo)
+	notificationService := services.NewNotificationService(db)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService)
 	complaintHandler := handlers.NewComplaintHandler(complaintService)
 	dashboardHandler := handlers.NewDashboardHandler(dashboardService)
 	adminHandler := handlers.NewAdminHandler(db, authService, deptRepo)
+	notificationHandler := handlers.NewNotificationHandler(notificationService)
 
 	// Setup routes
 	router := routes.SetupRouter(
@@ -61,6 +63,7 @@ func main() {
 		complaintHandler,
 		dashboardHandler,
 		adminHandler,
+		notificationHandler,
 	)
 
 	// Determine port

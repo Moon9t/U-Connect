@@ -113,6 +113,14 @@ func (s *ComplaintService) CreateComplaint(
 		return complaint, "", nil
 	}
 
+	_ = s.db.Create(&models.Notification{
+		UserID:             userID,
+		Type:               "complaint",
+		Title:              "Complaint submitted",
+		Description:        fmt.Sprintf("Your complaint %q was submitted successfully.", complaint.Title),
+		RelatedComplaintID: &complaint.ID,
+	}).Error
+
 	// Determine examiner visibility message
 	var message string
 	if complaint.Priority == models.PriorityCritical {
@@ -218,6 +226,14 @@ func (s *ComplaintService) UpdateStatus(
 		return nil, fmt.Errorf("failed to update status: %w", err)
 	}
 
+	_ = s.db.Create(&models.Notification{
+		UserID:             complaint.UserID,
+		Type:               "status",
+		Title:              "Complaint status updated",
+		Description:        fmt.Sprintf("Your complaint %q is now %s.", complaint.Title, newStatus),
+		RelatedComplaintID: &complaint.ID,
+	}).Error
+
 	return s.complaintRepo.FindByID(s.db, complaintID)
 }
 
@@ -248,6 +264,16 @@ func (s *ComplaintService) AddComment(
 
 	if err := s.complaintRepo.AddComment(s.db, comment); err != nil {
 		return nil, fmt.Errorf("failed to save comment: %w", err)
+	}
+
+	if userID != complaint.UserID {
+		_ = s.db.Create(&models.Notification{
+			UserID:             complaint.UserID,
+			Type:               "comment",
+			Title:              "New complaint comment",
+			Description:        fmt.Sprintf("There is a new response on your complaint %q.", complaint.Title),
+			RelatedComplaintID: &complaint.ID,
+		}).Error
 	}
 
 	// Preload user for response
