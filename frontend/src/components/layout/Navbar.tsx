@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { notificationService } from '../../services/notification.service';
+import { Notification } from '../../types/api';
 import { Logo } from '../common/Logo';
 import {
   Bell,
@@ -9,8 +11,6 @@ import {
   Shield,
   Search,
   CheckCheck,
-  AlertTriangle,
-  Clock,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -21,29 +21,60 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
   const { user, role, logout, switchDemoUser } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
 
   const initial = user?.name ? user.name.charAt(0).toUpperCase() : (role === 'admin' ? 'A' : 'S');
   const roleLabel = role === 'admin' ? 'Administrator' : role === 'staff' ? 'Staff Member' : 'Student';
   const displayName = user?.name || (role === 'admin' ? 'Admin User' : 'Student User');
 
-  const notifications = [
-    {
-      id: 1,
-      type: 'sla',
-      title: 'SLA Priority Warning',
-      desc: '2 grievances reached the 48-hour threshold in Facilities.',
-      time: '12m ago',
-      unread: true,
-    },
-    {
-      id: 2,
-      type: 'status',
-      title: 'Complaint Resolved',
-      desc: 'UC-2025-003 (Unclean Restrooms) marked as Resolved.',
-      time: '1h ago',
-      unread: true,
-    },
-  ];
+  useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
+
+    setNotificationsLoading(true);
+    notificationService
+      .getNotifications()
+      .then(setNotifications)
+      .catch(() => setNotifications([]))
+      .finally(() => setNotificationsLoading(false));
+  }, [user?.id]);
+
+  const unreadCount = notifications.filter((notification) => !notification.read_at).length;
+
+  const formatNotificationTime = (createdAt: string) => {
+    const elapsedMinutes = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000));
+    if (elapsedMinutes < 1) return 'Just now';
+    if (elapsedMinutes < 60) return `${elapsedMinutes}m ago`;
+    const elapsedHours = Math.floor(elapsedMinutes / 60);
+    if (elapsedHours < 24) return `${elapsedHours}h ago`;
+    return `${Math.floor(elapsedHours / 24)}d ago`;
+  };
+
+  const markNotificationAsRead = async (notification: Notification) => {
+    if (notification.read_at) return;
+    try {
+      await notificationService.markAsRead(notification.id);
+      setNotifications((current) => current.map((item) => item.id === notification.id
+        ? { ...item, read_at: new Date().toISOString() }
+        : item));
+    } catch {
+      // Keep the notification unread when the server update fails.
+    }
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    if (!unreadCount) return;
+    try {
+      await notificationService.markAllAsRead();
+      const readAt = new Date().toISOString();
+      setNotifications((current) => current.map((notification) => ({ ...notification, read_at: notification.read_at || readAt })));
+    } catch {
+      // Keep the current state when the server update fails.
+    }
+  };
 
   return (
     <header
@@ -173,7 +204,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
             aria-label="Notifications"
           >
             <Bell size={17} />
-            <span
+            {unreadCount > 0 && <span
               style={{
                 position: 'absolute',
                 top: '8px',
@@ -183,7 +214,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
                 backgroundColor: '#ef4444',
                 borderRadius: '50%',
               }}
-            />
+            />}
           </button>
 
           {notificationsOpen && (
@@ -215,9 +246,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
                   Notifications
                 </span>
                 <button
+                  onClick={markAllNotificationsAsRead}
+                  disabled={!unreadCount}
                   style={{
                     fontSize: '0.7rem',
-                    color: '#71717a',
+                    color: unreadCount ? '#71717a' : '#d4d4d8',
                     fontWeight: 500,
                     display: 'flex',
                     alignItems: 'center',
@@ -230,21 +263,34 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
               </div>
 
               <div>
-                {notifications.map((n) => (
+                {notificationsLoading && (
+                  <div style={{ padding: '18px 16px', color: '#71717a', fontSize: '0.8rem' }}>
+                    Loading notifications...
+                  </div>
+                )}
+                {!notificationsLoading && notifications.length === 0 && (
+                  <div style={{ padding: '18px 16px', color: '#71717a', fontSize: '0.8rem' }}>
+                    You have no notifications.
+                  </div>
+                )}
+                {!notificationsLoading && notifications.map((n) => (
                   <div
                     key={n.id}
+                    onClick={() => markNotificationAsRead(n)}
                     style={{
                       padding: '12px 16px',
                       borderBottom: '1px solid #f4f4f5',
                       fontSize: '0.8rem',
+                      backgroundColor: n.read_at ? '#ffffff' : '#fafafa',
+                      cursor: n.read_at ? 'default' : 'pointer',
                     }}
                   >
-                    <div style={{ fontWeight: 600, color: '#18181b' }}>{n.title}</div>
+                    <div style={{ fontWeight: n.read_at ? 500 : 700, color: '#18181b' }}>{n.title}</div>
                     <div style={{ color: '#71717a', marginTop: '2px', lineHeight: 1.4 }}>
-                      {n.desc}
+                      {n.description}
                     </div>
                     <div style={{ color: '#a1a1aa', fontSize: '0.7rem', marginTop: '4px' }}>
-                      {n.time}
+                      {formatNotificationTime(n.created_at)}
                     </div>
                   </div>
                 ))}

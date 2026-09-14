@@ -19,6 +19,7 @@ func SetupRouter(
 	complaintHandler *handlers.ComplaintHandler,
 	dashboardHandler *handlers.DashboardHandler,
 	adminHandler *handlers.AdminHandler,
+	notificationHandlers ...*handlers.NotificationHandler,
 ) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Logger())
@@ -83,6 +84,14 @@ func SetupRouter(
 
 			// Dashboard - All authenticated users (scoped by role)
 			protected.GET("/dashboard", dashboardHandler.GetStats)
+
+			// Notifications - scoped to the authenticated user
+			if len(notificationHandlers) > 0 && notificationHandlers[0] != nil {
+				notificationHandler := notificationHandlers[0]
+				protected.GET("/notifications", notificationHandler.List)
+				protected.PUT("/notifications/read-all", notificationHandler.MarkAllRead)
+				protected.PUT("/notifications/:id/read", notificationHandler.MarkRead)
+			}
 
 			// Departments - All authenticated users
 			protected.GET("/departments", adminHandler.ListDepartments)
