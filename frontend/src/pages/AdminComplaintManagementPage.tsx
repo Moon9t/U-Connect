@@ -38,7 +38,11 @@ const STATUSES: { value: string; label: string }[] = [
   { value: 'closed', label: 'Closed' },
 ];
 
-export const AdminComplaintManagementPage: React.FC = () => {
+interface AdminComplaintManagementPageProps {
+  initialComplaintId?: number;
+}
+
+export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPageProps> = ({ initialComplaintId }) => {
   const { role } = useAuth();
   const { success, error } = useToast();
 
@@ -70,6 +74,16 @@ export const AdminComplaintManagementPage: React.FC = () => {
   useEffect(() => {
     loadComplaints();
   }, [page, selectedCategory, selectedStatus, selectedDepartment, onlySlaEscalated]);
+
+  useEffect(() => {
+    if (!initialComplaintId) return;
+
+    complaintService.getComplaint(initialComplaintId).then((complaint) => {
+      handleOpenDetail(complaint);
+    }).catch(() => {
+      // The complaint may no longer be available to the current user.
+    });
+  }, [initialComplaintId]);
 
   const loadDepartments = async () => {
     try {
