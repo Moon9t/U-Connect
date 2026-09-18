@@ -14,22 +14,22 @@
 
 # ------------------------------------------------------------------------------
 # Backend System (Go 1.21, Gin, GORM, SQLite, JWT Auth, SLA Engine)
-# Primary Owner & Approver: @Moon9t
+# Primary Owner & Approver: @Moon9t & @SudoBrad
 # ------------------------------------------------------------------------------
 /backend/                       @Moon9t @SudoBrad
-/backend/cmd/                   @Moon9t
-/backend/internal/              @Moon9t
-/backend/internal/models/       @Moon9t
-/backend/internal/services/     @Moon9t
-/backend/internal/repositories/ @Moon9t
-/backend/internal/handlers/     @Moon9t
-/backend/internal/middleware/   @Moon9t
-/backend/internal/routes/       @Moon9t, @SudoBrad
-/backend/migrations/            @Moon9t, @SudoBrad
-/backend/tests/                 @Moon9t
-/backend/go.mod                 @Moon9t
-/backend/go.sum                 @Moon9t
-/backend/Dockerfile             @Moon9t
+/backend/cmd/                   @Moon9t @SudoBrad
+/backend/internal/              @Moon9t @SudoBrad
+/backend/internal/models/       @Moon9t @SudoBrad
+/backend/internal/services/     @Moon9t @SudoBrad
+/backend/internal/repositories/ @Moon9t @SudoBrad
+/backend/internal/handlers/     @Moon9t @SudoBrad
+/backend/internal/middleware/   @Moon9t @SudoBrad
+/backend/internal/routes/       @Moon9t @SudoBrad
+/backend/migrations/            @Moon9t @SudoBrad
+/backend/tests/                 @Moon9t @SudoBrad
+/backend/go.mod                 @Moon9t @SudoBrad
+/backend/go.sum                 @Moon9t @SudoBrad
+/backend/Dockerfile             @Moon9t @SudoBrad
 
 # ------------------------------------------------------------------------------
 # Frontend System (Vite, React 19, TypeScript, Lucide Icons, Vanilla CSS)
