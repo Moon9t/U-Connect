@@ -11,7 +11,7 @@
 
 # Default global owners (Entire repository)
 * @Moon9t
-
+* @SudoBrad
 # ------------------------------------------------------------------------------
 # Backend System (Go 1.21, Gin, GORM, SQLite, JWT Auth, SLA Engine)
 # Primary Owner & Approvers: @Moon9t @SudoBrad
