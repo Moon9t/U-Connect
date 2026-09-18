@@ -14,7 +14,7 @@
 
 # ------------------------------------------------------------------------------
 # Backend System (Go 1.21, Gin, GORM, SQLite, JWT Auth, SLA Engine)
-# Primary Owner & Approver: @Moon9t & @SudoBrad
+# Primary Owner & Approvers: @Moon9t @SudoBrad
 # ------------------------------------------------------------------------------
 /backend/                       @Moon9t @SudoBrad
 /backend/cmd/                   @Moon9t @SudoBrad
