@@ -63,7 +63,7 @@ export const StudentDashboardPage: React.FC<StudentDashboardPageProps> = ({
     day: 'numeric',
     month: 'long',
     year: 'numeric',
-  });
+}).replace(/(\d+)([A-Za-z]+)(\d+)/, '$1 $2 $3');
 
   const totalCount = stats ? stats.total_complaints : recentComplaints.length;
   const pendingCount = stats ? stats.pending_complaints : recentComplaints.filter((c) => c.status === 'pending').length;
