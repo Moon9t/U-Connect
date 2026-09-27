@@ -8,7 +8,6 @@ import {
   ChevronDown,
   LogOut,
   User as UserIcon,
-  Shield,
   Search,
   CheckCheck,
 } from 'lucide-react';
@@ -24,9 +23,22 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
 
-  const initial = user?.name ? user.name.charAt(0).toUpperCase() : (role === 'admin' ? 'A' : 'S');
-  const roleLabel = role === 'admin' ? 'Administrator' : role === 'staff' ? 'Staff Member' : 'Student';
-  const displayName = user?.name || (role === 'admin' ? 'Admin User' : 'Student User');
+  const initial = user?.name
+    ? user.name.charAt(0).toUpperCase()
+    : role === 'admin'
+      ? 'A'
+      : 'S';
+
+  const roleLabel =
+    role === 'admin'
+      ? 'Administrator'
+      : role === 'staff'
+        ? 'Staff Member'
+        : 'Student';
+
+  const displayName =
+    user?.name ||
+    (role === 'admin' ? 'Admin User' : 'Student User');
 
   useEffect(() => {
     if (!user) {
@@ -35,6 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
     }
 
     setNotificationsLoading(true);
+
     notificationService
       .getNotifications()
       .then(setNotifications)
@@ -42,24 +55,51 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
       .finally(() => setNotificationsLoading(false));
   }, [user?.id]);
 
-  const unreadCount = notifications.filter((notification) => !notification.read_at).length;
+  const unreadCount = notifications.filter(
+    (notification) => !notification.read_at
+  ).length;
 
   const formatNotificationTime = (createdAt: string) => {
-    const elapsedMinutes = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000));
+    const elapsedMinutes = Math.max(
+      0,
+      Math.floor(
+        (Date.now() - new Date(createdAt).getTime()) / 60000
+      )
+    );
+
     if (elapsedMinutes < 1) return 'Just now';
-    if (elapsedMinutes < 60) return `${elapsedMinutes}m ago`;
+
+    if (elapsedMinutes < 60) {
+      return `${elapsedMinutes}m ago`;
+    }
+
     const elapsedHours = Math.floor(elapsedMinutes / 60);
-    if (elapsedHours < 24) return `${elapsedHours}h ago`;
+
+    if (elapsedHours < 24) {
+      return `${elapsedHours}h ago`;
+    }
+
     return `${Math.floor(elapsedHours / 24)}d ago`;
   };
 
-  const markNotificationAsRead = async (notification: Notification) => {
+  const markNotificationAsRead = async (
+    notification: Notification
+  ) => {
     if (notification.read_at) return;
+
     try {
       await notificationService.markAsRead(notification.id);
-      setNotifications((current) => current.map((item) => item.id === notification.id
-        ? { ...item, read_at: new Date().toISOString() }
-        : item));
+
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === notification.id
+            ? {
+                ...item,
+                read_at: new Date().toISOString(),
+              }
+            : item
+        )
+      );
     } catch {
       // Keep the notification unread when the server update fails.
     }
@@ -67,10 +107,18 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
 
   const markAllNotificationsAsRead = async () => {
     if (!unreadCount) return;
+
     try {
       await notificationService.markAllAsRead();
+
       const readAt = new Date().toISOString();
-      setNotifications((current) => current.map((notification) => ({ ...notification, read_at: notification.read_at || readAt })));
+
+      setNotifications((current) =>
+        current.map((notification) => ({
+          ...notification,
+          read_at: notification.read_at || readAt,
+        }))
+      );
     } catch {
       // Keep the current state when the server update fails.
     }
@@ -81,7 +129,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
       style={{
         height: '64px',
         backgroundColor: '#ffffff',
-        borderBottom: '1px solid rgba(0, 0, 0, 0.07)',
+
+        /* Subtle blue border */
+        borderBottom: '1px solid rgba(30, 58, 138, 0.10)',
+
         padding: '0 36px',
         display: 'flex',
         alignItems: 'center',
@@ -92,38 +143,62 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
       }}
     >
       {/* Brand & Search */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '28px',
+        }}
+      >
         <Logo size="sm" />
 
+        {/* Search */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            backgroundColor: '#f4f4f5',
-            border: '1px solid transparent',
+
+            /* Light blue search background */
+            backgroundColor: '#eff6ff',
+
+            border: '1px solid #dbeafe',
             padding: '6px 12px',
             borderRadius: '9999px',
             width: '260px',
-            color: '#71717a',
+            color: '#64748b',
             fontSize: '0.8rem',
             cursor: 'pointer',
             transition: 'all 0.15s ease',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#ececee')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#f4f4f5')}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#dbeafe';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#eff6ff';
+          }}
         >
-          <Search size={14} color="#a1a1aa" />
-          <span style={{ flex: 1, color: '#71717a', fontWeight: 400 }}>Search records...</span>
+          <Search size={14} color="#3b82f6" />
+
+          <span
+            style={{
+              flex: 1,
+              color: '#64748b',
+              fontWeight: 400,
+            }}
+          >
+            Search records...
+          </span>
+
           <kbd
             style={{
               backgroundColor: '#ffffff',
-              border: '1px solid #e4e4e7',
+              border: '1px solid #bfdbfe',
               borderRadius: '4px',
               padding: '1px 5px',
               fontSize: '0.65rem',
               fontWeight: 600,
-              color: '#71717a',
+              color: '#64748b',
             }}
           >
             ⌘K
@@ -132,19 +207,29 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
       </div>
 
       {/* Right Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        {/* Service status */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '14px',
+        }}
+      >
+
+        {/* Service Status */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
             padding: '4px 10px',
-            backgroundColor: '#f4f4f5',
+
+            /* Very light blue */
+            backgroundColor: '#eff6ff',
+
             borderRadius: '9999px',
             fontSize: '0.725rem',
             fontWeight: 500,
-            color: '#52525b',
+            color: '#1e40af',
           }}
         >
           <span className="online-pulse" />
@@ -156,7 +241,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
           style={{
             display: 'flex',
             alignItems: 'center',
-            backgroundColor: '#f4f4f5',
+
+            /* Light blue container */
+            backgroundColor: '#eff6ff',
+
             padding: '2px',
             borderRadius: '9999px',
             gap: '2px',
@@ -164,6 +252,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
         >
           {(['student', 'staff', 'admin'] as const).map((r) => {
             const isActive = role === r;
+
             return (
               <button
                 key={r}
@@ -171,8 +260,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
                 style={{
                   padding: '4px 12px',
                   borderRadius: '9999px',
-                  backgroundColor: isActive ? '#18181b' : 'transparent',
-                  color: isActive ? '#ffffff' : '#71717a',
+
+                  /* Active role = blue */
+                  backgroundColor: isActive
+                    ? '#2563eb'
+                    : 'transparent',
+
+                  color: isActive
+                    ? '#ffffff'
+                    : '#64748b',
+
                   textTransform: 'capitalize',
                   transition: 'all 0.15s ease',
                   fontSize: '0.75rem',
@@ -188,7 +285,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
         {/* Notifications */}
         <div style={{ position: 'relative' }}>
           <button
-            onClick={() => setNotificationsOpen(!notificationsOpen)}
+            onClick={() =>
+              setNotificationsOpen(!notificationsOpen)
+            }
             style={{
               width: '36px',
               height: '36px',
@@ -196,27 +295,39 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: notificationsOpen ? '#18181b' : '#71717a',
-              backgroundColor: notificationsOpen ? '#f4f4f5' : 'transparent',
+
+              /* Blue when active */
+              color: notificationsOpen
+                ? '#2563eb'
+                : '#64748b',
+
+              backgroundColor: notificationsOpen
+                ? '#eff6ff'
+                : 'transparent',
+
               transition: 'background-color 0.15s ease',
               position: 'relative',
             }}
             aria-label="Notifications"
           >
             <Bell size={17} />
-            {unreadCount > 0 && <span
-              style={{
-                position: 'absolute',
-                top: '8px',
-                right: '8px',
-                width: '6px',
-                height: '6px',
-                backgroundColor: '#ef4444',
-                borderRadius: '50%',
-              }}
-            />}
+
+            {unreadCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '8px',
+                  right: '8px',
+                  width: '6px',
+                  height: '6px',
+                  backgroundColor: '#ef4444',
+                  borderRadius: '50%',
+                }}
+              />
+            )}
           </button>
 
+          {/* Notification Dropdown */}
           {notificationsOpen && (
             <div
               style={{
@@ -236,21 +347,31 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
               <div
                 style={{
                   padding: '12px 16px',
-                  borderBottom: '1px solid #f4f4f5',
+                  borderBottom:
+                    '1px solid var(--neutral-100)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                 }}
               >
-                <span style={{ fontWeight: 600, fontSize: '0.825rem', color: '#18181b' }}>
+                <span
+                  style={{
+                    fontWeight: 600,
+                    fontSize: '0.825rem',
+                    color: '#1e3a8a',
+                  }}
+                >
                   Notifications
                 </span>
+
                 <button
                   onClick={markAllNotificationsAsRead}
                   disabled={!unreadCount}
                   style={{
                     fontSize: '0.7rem',
-                    color: unreadCount ? '#71717a' : '#d4d4d8',
+                    color: unreadCount
+                      ? '#2563eb'
+                      : '#cbd5e1',
                     fontWeight: 500,
                     display: 'flex',
                     alignItems: 'center',
@@ -264,36 +385,81 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
 
               <div>
                 {notificationsLoading && (
-                  <div style={{ padding: '18px 16px', color: '#71717a', fontSize: '0.8rem' }}>
+                  <div
+                    style={{
+                      padding: '18px 16px',
+                      color: '#64748b',
+                      fontSize: '0.8rem',
+                    }}
+                  >
                     Loading notifications...
                   </div>
                 )}
-                {!notificationsLoading && notifications.length === 0 && (
-                  <div style={{ padding: '18px 16px', color: '#71717a', fontSize: '0.8rem' }}>
-                    You have no notifications.
-                  </div>
-                )}
-                {!notificationsLoading && notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    onClick={() => markNotificationAsRead(n)}
-                    style={{
-                      padding: '12px 16px',
-                      borderBottom: '1px solid #f4f4f5',
-                      fontSize: '0.8rem',
-                      backgroundColor: n.read_at ? '#ffffff' : '#fafafa',
-                      cursor: n.read_at ? 'default' : 'pointer',
-                    }}
-                  >
-                    <div style={{ fontWeight: n.read_at ? 500 : 700, color: '#18181b' }}>{n.title}</div>
-                    <div style={{ color: '#71717a', marginTop: '2px', lineHeight: 1.4 }}>
-                      {n.description}
+
+                {!notificationsLoading &&
+                  notifications.length === 0 && (
+                    <div
+                      style={{
+                        padding: '18px 16px',
+                        color: '#64748b',
+                        fontSize: '0.8rem',
+                      }}
+                    >
+                      You have no notifications.
                     </div>
-                    <div style={{ color: '#a1a1aa', fontSize: '0.7rem', marginTop: '4px' }}>
-                      {formatNotificationTime(n.created_at)}
+                  )}
+
+                {!notificationsLoading &&
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      onClick={() => markNotificationAsRead(n)}
+                      style={{
+                        padding: '12px 16px',
+                        borderBottom:
+                          '1px solid var(--neutral-100)',
+                        fontSize: '0.8rem',
+
+                        /* Unread notifications get a blue tint */
+                        backgroundColor: n.read_at
+                          ? '#ffffff'
+                          : '#eff6ff',
+
+                        cursor: n.read_at
+                          ? 'default'
+                          : 'pointer',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontWeight: n.read_at ? 500 : 700,
+                          color: '#1e3a8a',
+                        }}
+                      >
+                        {n.title}
+                      </div>
+
+                      <div
+                        style={{
+                          color: '#64748b',
+                          marginTop: '2px',
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        {n.description}
+                      </div>
+
+                      <div
+                        style={{
+                          color: '#94a3b8',
+                          fontSize: '0.7rem',
+                          marginTop: '4px',
+                        }}
+                      >
+                        {formatNotificationTime(n.created_at)}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </div>
           )}
@@ -309,16 +475,24 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
               gap: '8px',
               padding: '4px 8px',
               borderRadius: '9999px',
-              backgroundColor: dropdownOpen ? '#f4f4f5' : 'transparent',
+
+              backgroundColor: dropdownOpen
+                ? '#eff6ff'
+                : 'transparent',
+
               transition: 'all 0.15s ease',
             }}
           >
+            {/* User Avatar */}
             <div
               style={{
                 width: '30px',
                 height: '30px',
                 borderRadius: '50%',
-                backgroundColor: '#18181b',
+
+                /* Blue avatar */
+                backgroundColor: '#2563eb',
+
                 color: '#ffffff',
                 fontWeight: 700,
                 fontSize: '0.8rem',
@@ -330,13 +504,23 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
               {initial}
             </div>
 
-            <span style={{ fontSize: '0.825rem', fontWeight: 600, color: '#18181b' }}>
+            <span
+              style={{
+                fontSize: '0.825rem',
+                fontWeight: 600,
+                color: '#1e3a8a',
+              }}
+            >
               {displayName}
             </span>
 
-            <ChevronDown size={13} color="#a1a1aa" />
+            <ChevronDown
+              size={13}
+              color="#64748b"
+            />
           </button>
 
+          {/* Profile Dropdown */}
           {dropdownOpen && (
             <div
               style={{
@@ -353,17 +537,38 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
                 animation: 'fadeIn 0.15s ease-out',
               }}
             >
-              <div style={{ padding: '8px 12px', borderBottom: '1px solid #f4f4f5' }}>
-                <div style={{ fontSize: '0.825rem', fontWeight: 600, color: '#18181b' }}>
+              <div
+                style={{
+                  padding: '8px 12px',
+                  borderBottom:
+                    '1px solid var(--neutral-100)',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '0.825rem',
+                    fontWeight: 600,
+                    color: '#1e3a8a',
+                  }}
+                >
                   {user?.name}
                 </div>
-                <div style={{ fontSize: '0.725rem', color: '#71717a' }}>{user?.email}</div>
+
+                <div
+                  style={{
+                    fontSize: '0.725rem',
+                    color: '#64748b',
+                  }}
+                >
+                  {user?.email}
+                </div>
+
                 <div
                   style={{
                     display: 'inline-block',
                     fontSize: '0.675rem',
-                    color: '#52525b',
-                    backgroundColor: '#f4f4f5',
+                    color: '#1e40af',
+                    backgroundColor: '#eff6ff',
                     padding: '2px 6px',
                     borderRadius: '4px',
                     fontWeight: 600,
@@ -375,6 +580,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
                 </div>
               </div>
 
+              {/* My Profile */}
               {onNavigateToProfile && (
                 <button
                   onClick={() => {
@@ -388,18 +594,30 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
                     gap: '8px',
                     padding: '8px 12px',
                     fontSize: '0.8rem',
-                    color: '#27272a',
+                    color: '#334155',
                     borderRadius: '8px',
                     textAlign: 'left',
                     fontWeight: 500,
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f4f4f5')}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor =
+                      '#eff6ff';
+                    e.currentTarget.style.color =
+                      '#2563eb';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor =
+                      'transparent';
+                    e.currentTarget.style.color =
+                      '#334155';
+                  }}
                 >
-                  <UserIcon size={14} /> My Profile
+                  <UserIcon size={14} />
+                  My Profile
                 </button>
               )}
 
+              {/* Sign Out */}
               <button
                 onClick={() => {
                   setDropdownOpen(false);
@@ -417,10 +635,17 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
                   textAlign: 'left',
                   fontWeight: 600,
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fef2f2')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor =
+                    '#fef2f2';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor =
+                    'transparent';
+                }}
               >
-                <LogOut size={14} /> Sign Out
+                <LogOut size={14} />
+                Sign Out
               </button>
             </div>
           )}
