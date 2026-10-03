@@ -116,18 +116,13 @@ export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPage
     }
   };
 
-  const handleExportCSV = async () => {
+  const handleExportPDF = async () => {
     setIsExporting(true);
     try {
-      await complaintService.exportCSV({
-        category: selectedCategory || undefined,
-        status: selectedStatus || undefined,
-        department_id: selectedDepartment ? Number(selectedDepartment) : undefined,
-        sla_escalated: onlySlaEscalated ? true : undefined,
-      });
-      success('Complaint records exported to CSV successfully');
+      await complaintService.exportReportPDF();
+      success('Complaint report exported to PDF successfully');
     } catch (err: any) {
-      error(err.message || 'Failed to export CSV');
+      error(err.message || 'Failed to export PDF');
     } finally {
       setIsExporting(false);
     }
@@ -146,7 +141,7 @@ export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPage
   const filteredComplaints = complaints.filter((c) => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
-    const refNo = `UC-2025-${c.id.toString().padStart(3, '0')}`.toLowerCase();
+    const refNo = c.reference_number.toLowerCase();
     const titleMatch = c.title.toLowerCase().includes(query);
     const userMatch = c.user?.name ? c.user.name.toLowerCase().includes(query) : false;
     return refNo.includes(query) || titleMatch || userMatch;
@@ -192,13 +187,13 @@ export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPage
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
-            onClick={handleExportCSV}
+            onClick={handleExportPDF}
             disabled={isExporting}
             className="btn btn-secondary"
-            title="Download CSV Report"
+            title="Download PDF Report"
           >
             <Download size={15} />
-            <span>{isExporting ? 'Exporting...' : 'Export CSV'}</span>
+            <span>{isExporting ? 'Exporting...' : 'Export PDF'}</span>
           </button>
 
           <button
@@ -372,7 +367,7 @@ export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPage
                 </tr>
               ) : (
                 filteredComplaints.map((c) => {
-                  const refNo = `UC-2025-${c.id.toString().padStart(3, '0')}`;
+                  const refNo = c.reference_number;
                   const formattedDate = new Date(c.created_at).toLocaleDateString('en-GB', {
                     day: 'numeric',
                     month: 'short',

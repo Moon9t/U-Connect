@@ -325,7 +325,7 @@ export const StudentDashboardPage: React.FC<StudentDashboardPageProps> = ({
                 </tr>
               ) : (
                 recentComplaints.map((c) => {
-                  const refNo = `UC-2025-${c.id.toString().padStart(3, '0')}`;
+                  const refNo = c.reference_number;
                   const formatted = new Date(c.created_at).toLocaleDateString('en-GB', {
                     day: 'numeric',
                     month: 'short',

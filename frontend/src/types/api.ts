@@ -4,7 +4,7 @@ export interface Department {
   id: number;
   name: string;
   code: string;
-  description?: string;
+  description?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -12,10 +12,12 @@ export interface Department {
 export interface User {
   id: number;
   name: string;
+  username: string;
   email: string;
   role: UserRole;
   department_id?: number | null;
   department?: Department | null;
+  is_active?: boolean | number;
   created_at?: string;
   updated_at?: string;
 }
@@ -30,7 +32,6 @@ export type ComplaintCategory =
   | 'Student Affairs';
 
 export type ComplaintPriority = 'low' | 'medium' | 'high' | 'critical';
-
 export type ComplaintStatus = 'pending' | 'in-progress' | 'resolved' | 'closed';
 
 export interface Comment {
@@ -38,9 +39,37 @@ export interface Comment {
   complaint_id: number;
   user_id: number;
   user?: User | null;
+  status?: ComplaintStatus;
   role: UserRole;
   content: string;
   created_at: string;
+}
+
+export interface Attachment {
+  attachment_id: number;
+  complaint_id: number;
+  file_name: string;
+  file_path: string;
+  file_type: string;
+  uploaded_at: string;
+}
+
+export interface Feedback {
+  feedback_id: number;
+  complaint_id: number;
+  user_id: number;
+  rating: number;
+  comment?: string | null;
+  submitted_at: string;
+}
+
+export interface ComplaintUpdate {
+  update_id: number;
+  complaint_id: number;
+  user_id: number;
+  status: ComplaintStatus;
+  comment?: string | null;
+  updated_at: string;
 }
 
 export interface Notification {
@@ -57,9 +86,11 @@ export interface Notification {
 
 export interface Complaint {
   id: number;
+  reference_number: string;
   title: string;
   description: string;
   category: ComplaintCategory | string;
+  location: string;
   priority: ComplaintPriority | string;
   status: ComplaintStatus;
   anonymous: boolean;
@@ -72,6 +103,8 @@ export interface Complaint {
   created_at: string;
   updated_at: string;
   comments?: Comment[];
+  attachments?: Attachment[];
+  feedback?: Feedback[];
 }
 
 export interface DashboardStats {
@@ -110,11 +143,20 @@ export interface CreateComplaintPayload {
   title: string;
   description: string;
   category: string;
+  location: string;
   department_id: number;
   anonymous?: boolean;
 }
 
+export interface UpdateComplaintPayload {
+  title?: string;
+  description?: string;
+  category?: string;
+  location?: string;
+}
+
 export interface ComplaintFilters {
+  reference_number?: string;
   status?: string;
   category?: string;
   priority?: string;
@@ -122,5 +164,28 @@ export interface ComplaintFilters {
   sla_escalated?: boolean;
   page?: number;
   page_size?: number;
-  search?: string;
+}
+
+export interface ReportFilters {
+  from?: string;
+  to?: string;
+}
+
+export interface CategoryReportRow {
+  category: string;
+  count: number;
+}
+
+export interface StatusReportRow {
+  status: ComplaintStatus;
+  count: number;
+}
+
+export interface CreateUserPayload {
+  name: string;
+  username: string;
+  email: string;
+  password: string;
+  role?: UserRole;
+  department_id?: number;
 }

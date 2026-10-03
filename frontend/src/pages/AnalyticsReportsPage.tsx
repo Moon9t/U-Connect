@@ -21,6 +21,8 @@ export const AnalyticsReportsPage: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   useEffect(() => {
     loadStats();
@@ -38,13 +40,13 @@ export const AnalyticsReportsPage: React.FC = () => {
     }
   };
 
-  const handleExport = async () => {
+  const handleExportPDF = async () => {
     setIsExporting(true);
     try {
-      await complaintService.exportCSV();
-      success('Complaint records exported to CSV successfully');
+      await complaintService.exportReportPDF({ from: fromDate || undefined, to: toDate || undefined });
+      success('Complaint report exported to PDF successfully');
     } catch (err: any) {
-      error(err.message || 'Export failed');
+      error(err.message || 'PDF export failed');
     } finally {
       setIsExporting(false);
     }
@@ -69,14 +71,19 @@ export const AnalyticsReportsPage: React.FC = () => {
           </p>
         </div>
 
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <input type="date" className="form-input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} aria-label="Report start date" />
+          <input type="date" className="form-input" value={toDate} onChange={(e) => setToDate(e.target.value)} aria-label="Report end date" />
+        </div>
+
         <button
-          onClick={handleExport}
+          onClick={handleExportPDF}
           disabled={isExporting}
           className="btn btn-primary"
           style={{ padding: '9px 18px' }}
         >
           <Download size={16} />
-          <span>{isExporting ? 'Generating CSV...' : 'Export Full Dataset (CSV)'}</span>
+          <span>{isExporting ? 'Generating PDF...' : 'Export Complaint Report (PDF)'}</span>
         </button>
       </div>
 
