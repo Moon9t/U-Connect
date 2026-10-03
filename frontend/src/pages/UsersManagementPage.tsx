@@ -26,6 +26,17 @@ export const UsersManagementPage: React.FC = () => {
     }
   };
 
+  const handleDeactivate = async (userId: number) => {
+    if (!window.confirm('Deactivate this user account?')) return;
+    try {
+      await adminService.deactivateUser(userId);
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, is_active: false } : u)));
+      success('User account deactivated');
+    } catch (err: any) {
+      error(err.message || 'Failed to deactivate user');
+    }
+  };
+
   const handleRoleChange = async (userId: number, newRole: UserRole) => {
     try {
       await adminService.updateUserRole(userId, newRole);
@@ -83,7 +94,7 @@ export const UsersManagementPage: React.FC = () => {
                 <th>Email Address</th>
                 <th>Department</th>
                 <th>Current Role</th>
-                <th>Action: Change Role</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -163,22 +174,28 @@ export const UsersManagementPage: React.FC = () => {
                         </span>
                       </td>
                       <td>
-                        <select
-                          value={u.role}
-                          onChange={(e) => handleRoleChange(u.id, e.target.value as UserRole)}
-                          className="form-select"
-                          style={{
-                            width: 'auto',
-                            padding: '4px 8px',
-                            fontSize: '0.8rem',
-                            fontWeight: 500,
-                            borderColor: '#cbd5e1',
-                          }}
-                        >
-                          <option value="student">Student</option>
-                          <option value="staff">Staff</option>
-                          <option value="admin">Admin</option>
-                        </select>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <select
+                            value={u.role}
+                            onChange={(e) => handleRoleChange(u.id, e.target.value as UserRole)}
+                            className="form-select"
+                            style={{ width: 'auto', padding: '4px 8px', fontSize: '0.8rem', fontWeight: 500, borderColor: '#cbd5e1' }}
+                            disabled={u.is_active === false || u.is_active === 0}
+                          >
+                            <option value="student">Student</option>
+                            <option value="staff">Staff</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => handleDeactivate(u.id)}
+                            disabled={u.is_active === false || u.is_active === 0}
+                            style={{ padding: '5px 8px', fontSize: '0.75rem' }}
+                          >
+                            {u.is_active === false || u.is_active === 0 ? 'Inactive' : 'Deactivate'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

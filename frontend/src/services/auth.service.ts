@@ -1,11 +1,11 @@
 import { request } from './apiClient';
-import { ApiResponse, LoginResponse, User } from '../types/api';
+import { ApiResponse, LoginResponse, User, UserRole } from '../types/api';
 
 export const authService = {
-  async login(email: string, password: string): Promise<LoginResponse> {
+  async login(username: string, password: string): Promise<LoginResponse> {
     const res = await request<ApiResponse<LoginResponse>>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ username, password }),
     });
     if (res.data?.token) {
       localStorage.setItem('uconnect_token', res.data.token);
@@ -14,10 +14,17 @@ export const authService = {
     return res.data;
   },
 
-  async register(name: string, email: string, password: string, role: string = 'student', department_id?: number): Promise<LoginResponse> {
+  async register(
+    name: string,
+    username: string,
+    email: string,
+    password: string,
+    role: UserRole = 'student',
+    department_id?: number,
+  ): Promise<LoginResponse> {
     const res = await request<ApiResponse<LoginResponse>>('/api/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ name, email, password, role, department_id }),
+      body: JSON.stringify({ name, username, email, password, role, department_id }),
     });
     if (res.data?.token) {
       localStorage.setItem('uconnect_token', res.data.token);
@@ -26,9 +33,15 @@ export const authService = {
     return res.data;
   },
 
-  logout() {
-    localStorage.removeItem('uconnect_token');
-    localStorage.removeItem('uconnect_user');
+  async logout(): Promise<void> {
+    try {
+      if (this.getToken()) {
+        await request<void>('/api/auth/logout', { method: 'POST' });
+      }
+    } finally {
+      localStorage.removeItem('uconnect_token');
+      localStorage.removeItem('uconnect_user');
+    }
   },
 
   getStoredUser(): User | null {
@@ -43,5 +56,5 @@ export const authService = {
 
   getToken(): string | null {
     return localStorage.getItem('uconnect_token');
-  }
+  },
 };

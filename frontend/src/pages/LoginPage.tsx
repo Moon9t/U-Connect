@@ -16,7 +16,7 @@ export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const { error, success } = useToast();
 
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -24,14 +24,14 @@ export const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      error('Please enter both email and password');
+    if (!username || !password) {
+      error('Please enter both username and password');
       return;
     }
 
     setIsLoading(true);
     try {
-      await login(email, password);
+      await login(username, password);
       success('Authenticated successfully');
     } catch (err: any) {
       error(err.message || 'Invalid credentials');
@@ -40,13 +40,13 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleQuickLogin = async (demoEmail: string) => {
+  const handleQuickLogin = async (demoUsername: string) => {
     setIsLoading(true);
-    setEmail(demoEmail);
+    setUsername(demoUsername);
     setPassword('password123');
     try {
-      await login(demoEmail, 'password123');
-      success(`Authenticated as ${demoEmail}`);
+      await login(demoUsername, 'password123');
+      success(`Authenticated as ${demoUsername}`);
     } catch (err: any) {
       error(err.message || 'Login failed');
     } finally {
@@ -199,10 +199,10 @@ export const LoginPage: React.FC = () => {
                 <UserIcon size={17} />
               </span>
               <input
-                type="email"
-                placeholder="Username or University Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                placeholder="University Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
                 className="form-input"
                 style={{
@@ -346,30 +346,30 @@ export const LoginPage: React.FC = () => {
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
             <button
-              onClick={() => handleQuickLogin('student1@uconnect.edu')}
+              onClick={() => handleQuickLogin('student1')}
               className="btn btn-secondary"
               style={{ padding: '6px 4px', fontSize: '0.75rem' }}
-              title="student1@uconnect.edu"
+              title="student1"
             >
               <GraduationCap size={14} color="#18181b" />
               <span>Student</span>
             </button>
 
             <button
-              onClick={() => handleQuickLogin('staff1@uconnect.edu')}
+              onClick={() => handleQuickLogin('staff1')}
               className="btn btn-secondary"
               style={{ padding: '6px 4px', fontSize: '0.75rem' }}
-              title="staff1@uconnect.edu"
+              title="staff1"
             >
               <UserCheck size={14} color="#18181b" />
               <span>Staff</span>
             </button>
 
             <button
-              onClick={() => handleQuickLogin('admin@test.com')}
+              onClick={() => handleQuickLogin('admin')}
               className="btn btn-secondary"
               style={{ padding: '6px 4px', fontSize: '0.75rem' }}
-              title="admin@test.com"
+              title="admin"
             >
               <ShieldCheck size={14} color="#18181b" />
               <span>Admin</span>

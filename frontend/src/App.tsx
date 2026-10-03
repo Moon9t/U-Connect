@@ -18,6 +18,7 @@ import { ProfilePage } from './pages/ProfilePage';
 const MainLayout: React.FC = () => {
   const { isAuthenticated, role, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
+  const [notificationComplaintId, setNotificationComplaintId] = useState<number | undefined>();
 
   // Set default tab based on role
   useEffect(() => {
@@ -71,10 +72,11 @@ const MainLayout: React.FC = () => {
         return (
           <MyComplaintsPage
             onNavigateToSubmit={() => setActiveTab('submit-complaint')}
+            initialComplaintId={notificationComplaintId}
           />
         );
       case 'complaints-mgmt':
-        return <AdminComplaintManagementPage />;
+        return <AdminComplaintManagementPage initialComplaintId={notificationComplaintId} />;
       case 'users':
         return <UsersManagementPage />;
       case 'departments':
@@ -104,7 +106,13 @@ const MainLayout: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="main-content">
-        <Navbar onNavigateToProfile={() => setActiveTab('profile')} />
+        <Navbar
+          onNavigateToProfile={() => setActiveTab('profile')}
+          onNavigateToComplaints={(complaintId) => {
+            setNotificationComplaintId(complaintId || undefined);
+            setActiveTab(role === 'student' ? 'my-complaints' : 'complaints-mgmt');
+          }}
+        />
         <main style={{ flex: 1, overflowY: 'auto' }}>{renderContent()}</main>
       </div>
     </div>
