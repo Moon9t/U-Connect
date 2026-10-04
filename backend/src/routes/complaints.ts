@@ -1,23 +1,1358 @@
-import { Router } from 'express'; import multer from 'multer'; import fs from 'node:fs'; import path from 'node:path';
-import { db, nowIso } from '../config/database.js'; import { authenticate, requireRole } from '../middleware/auth.js'; import { fail, ok } from '../utils/response.js'; import { audit } from '../services/audit.js'; import { complaintSchema, complaintUpdateSchema, statusSchema, assignSchema, commentSchema, feedbackSchema } from '../validators/schemas.js';
-const router=Router();router.use(authenticate);const uploadDir=path.resolve(process.cwd(),'uploads');fs.mkdirSync(uploadDir,{recursive:true});const upload=multer({dest:uploadDir,limits:{fileSize:10*1024*1024}});
-const select=`SELECT c.*, u.id user_id,u.name user_name,u.username user_username,u.email user_email,u.role user_role,d.id department_id,d.name department_name,d.code department_code FROM complaints c JOIN users u ON u.id=c.user_id JOIN departments d ON d.id=c.department_id`;
-export function shape(r:any){return {...r,id:r.id,reference_number:r.reference_number,title:r.title,description:r.description,category:r.category,location:r.location,priority:r.priority,status:r.status,anonymous:!!r.anonymous,sla_escalated:!!r.sla_escalated,user_id:r.user_id,user:r.anonymous?null:{id:r.user_id,name:r.user_name,username:r.user_username,email:r.user_email,role:r.user_role},department:{id:r.department_id,name:r.department_name,code:r.department_code},resolved_at:r.resolved_at,created_at:r.created_at,updated_at:r.updated_at};}
-function getComplaint(id:number){return db.prepare(select+' WHERE c.id=?').get(id) as any;}
-function allowed(req:any,c:any){return req.user.role!=='student'||c.user_id===req.user.user_id;}
-function priority(desc:string,category:string){const d=desc.toLowerCase();if(['emergency','urgent','critical','immediate','danger'].some(k=>d.includes(k)))return 'critical';if(category==='Exam Hall'||category==='Safety')return 'high';return 'medium';}
-router.post('/',(req,res)=>{const p=complaintSchema.safeParse(req.body);if(!p.success)return fail(res,400,'Invalid complaint payload');const category=db.prepare('SELECT category_id FROM categories WHERE category_name=? AND is_active=1').get(p.data.category);if(!category)return fail(res,400,'Invalid category');const dept=db.prepare('SELECT id FROM departments WHERE id=?').get(req.body.department_id);if(!dept)return fail(res,400,'Department not found');const t=nowIso();try{db.exec('BEGIN');const r=db.prepare(`INSERT INTO complaints(reference_number,title,description,category,location,priority,status,anonymous,sla_escalated,user_id,department_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).run('TEMP',p.data.title,p.data.description,p.data.category,p.data.location,priority(p.data.description,p.data.category),'pending',p.data.anonymous?1:0,0,req.user!.user_id,req.body.department_id,t,t);const id=Number(r.lastInsertRowid),ref=`UC-${id.toString().padStart(6,'0')}`;db.prepare('UPDATE complaints SET reference_number=? WHERE id=?').run(ref,id);db.prepare('INSERT INTO complaint_updates(complaint_id,user_id,status,comment,updated_at) VALUES (?,?,?,?,?)').run(id,req.user!.user_id,'pending','Complaint submitted',t);db.prepare('INSERT INTO notifications(user_id,type,title,description,related_complaint_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?)').run(req.user!.user_id,'complaint','Complaint submitted',`Your complaint "${p.data.title}" was submitted successfully.`,id,t,t);audit(req.user!.user_id,'CREATE','complaints',id);db.exec('COMMIT');const c=getComplaint(id);return ok(res,shape(c),'Complaint submitted');}catch(error){try{db.exec('ROLLBACK');}catch{}return fail(res,500,'Failed to submit complaint');}});
-router.get('/',(req,res)=>{const q=req.query;const page=Math.max(1,Number(q.page)||1),pageSize=Math.min(100,Math.max(1,Number(q.page_size)||20));const cond:string[]=[];const args:any[]=[];if(req.user!.role==='student'){cond.push('c.user_id=?');args.push(req.user!.user_id)}if(q.reference_number){cond.push('c.reference_number=?');args.push(String(q.reference_number))}if(q.status){cond.push('c.status=?');args.push(String(q.status))}if(q.category){cond.push('c.category=?');args.push(String(q.category))}if(q.priority){cond.push('c.priority=?');args.push(String(q.priority))}if(q.department_id){cond.push('c.department_id=?');args.push(Number(q.department_id))}if(q.sla_escalated!==undefined){cond.push('c.sla_escalated=?');args.push(String(q.sla_escalated)==='true'?1:0)}const where=cond.length?' WHERE '+cond.join(' AND '):'';const total=Number((db.prepare(`SELECT count(*) c FROM complaints c${where}`).get(...args) as any).c);const rows=db.prepare(`${select}${where} ORDER BY c.created_at DESC LIMIT ? OFFSET ?`).all(...args,pageSize,(page-1)*pageSize) as any[];return res.json({data:rows.map(shape),total,page,page_size:pageSize,total_pages:Math.max(1,Math.ceil(total/pageSize))});});
-router.get('/:id',(req,res)=>{const c=getComplaint(Number(req.params.id));if(!c)return fail(res,404,'Complaint not found');if(!allowed(req,c))return fail(res,403,'Forbidden');return ok(res,shape(c));});
-router.put('/:id',(req,res)=>{const id=Number(req.params.id),c=getComplaint(id);if(!c)return fail(res,404,'Complaint not found');if(req.user!.role==='student'&&c.user_id!==req.user!.user_id)return fail(res,403,'Forbidden');const p=complaintUpdateSchema.safeParse(req.body);if(!p.success)return fail(res,400,'Invalid complaint payload');const d={...p.data};const t=nowIso();db.prepare(`UPDATE complaints SET title=?,description=?,category=?,location=?,updated_at=? WHERE id=?`).run(d.title??c.title,d.description??c.description,d.category??c.category,d.location??c.location,t,id);audit(req.user!.user_id,'UPDATE','complaints',id);return ok(res,shape(getComplaint(id)));});
-router.delete('/:id',requireRole('admin'),(req,res)=>{const id=Number(req.params.id),r=db.prepare('DELETE FROM complaints WHERE id=?').run(id);if(!r.changes)return fail(res,404,'Complaint not found');audit(req.user!.user_id,'DELETE','complaints',id);return ok(res,{message:'Complaint deleted successfully'});});
-router.put('/:id/assign',requireRole('admin','staff'),(req,res)=>{const id=Number(req.params.id),p=assignSchema.safeParse(req.body);if(!p.success)return fail(res,400,'department_id is required');const c=getComplaint(id);if(!c)return fail(res,404,'Complaint not found');if(!db.prepare('SELECT id FROM departments WHERE id=?').get(p.data.department_id))return fail(res,404,'Department not found');db.prepare('UPDATE complaints SET department_id=?,updated_at=? WHERE id=?').run(p.data.department_id,nowIso(),id);db.prepare('INSERT INTO complaint_updates(complaint_id,user_id,status,comment,updated_at) VALUES (?,?,?,?,?)').run(id,req.user!.user_id,c.status,`Assigned to department ${p.data.department_id}`,nowIso());audit(req.user!.user_id,'ASSIGN','complaints',id);return ok(res,shape(getComplaint(id)));});
-router.put('/:id/status',requireRole('admin','staff'),(req,res)=>{const id=Number(req.params.id),p=statusSchema.safeParse(req.body);if(!p.success)return fail(res,400,'Invalid status');const c=getComplaint(id);if(!c)return fail(res,404,'Complaint not found');const transitions:any={pending:['in-progress','resolved','closed'],'in-progress':['resolved','closed','pending'],resolved:['closed'],closed:[]};if(!transitions[c.status]?.includes(p.data.status))return fail(res,400,`Cannot transition from '${c.status}' to '${p.data.status}'`);const t=nowIso();const resolved=p.data.status==='resolved'||p.data.status==='closed'?t:null;db.prepare('UPDATE complaints SET status=?,resolved_at=?,updated_at=? WHERE id=?').run(p.data.status,resolved,t,id);db.prepare('INSERT INTO complaint_updates(complaint_id,user_id,status,comment,updated_at) VALUES (?,?,?,?,?)').run(id,req.user!.user_id,p.data.status,`Status changed to ${p.data.status}`,t);audit(req.user!.user_id,'UPDATE_STATUS','complaints',id);return ok(res,shape(getComplaint(id)));});
-router.post('/:id/comments',(req,res)=>{const id=Number(req.params.id),c=getComplaint(id);if(!c)return fail(res,404,'Complaint not found');if(!allowed(req,c))return fail(res,403,'Forbidden');const p=commentSchema.safeParse(req.body);if(!p.success)return fail(res,400,'Content is required');const t=nowIso();const r=db.prepare('INSERT INTO complaint_updates(complaint_id,user_id,status,comment,updated_at) VALUES (?,?,?,?,?)').run(id,req.user!.user_id,c.status,p.data.content,t);return ok(res,{id:Number(r.lastInsertRowid),complaint_id:id,user_id:req.user!.user_id,status:c.status,content:p.data.content,created_at:t});});
-router.get('/:id/comments',(req,res)=>{const id=Number(req.params.id),c=getComplaint(id);if(!c)return fail(res,404,'Complaint not found');if(!allowed(req,c))return fail(res,403,'Forbidden');const rows=db.prepare(`SELECT cu.update_id id,cu.complaint_id,cu.user_id,u.name,u.username,u.email,u.role,cu.comment content,cu.updated_at created_at FROM complaint_updates cu JOIN users u ON u.id=cu.user_id WHERE cu.complaint_id=? AND cu.comment IS NOT NULL ORDER BY cu.updated_at ASC`).all(id) as any[];return ok(res,rows.map(r=>({...r,user:{id:r.user_id,name:r.name,username:r.username,email:r.email,role:r.role}})));});
-router.post('/:id/attachments',upload.single('file'),(req,res)=>{const id=Number(req.params.id),c=getComplaint(id);if(!c)return fail(res,404,'Complaint not found');if(!allowed(req,c))return fail(res,403,'Forbidden');if(!req.file)return fail(res,400,'File is required');const t=nowIso();const r=db.prepare('INSERT INTO attachments(complaint_id,file_name,file_path,file_type,uploaded_at) VALUES (?,?,?,?,?)').run(id,req.file.originalname,req.file.path,req.file.mimetype,t);return ok(res,{attachment_id:Number(r.lastInsertRowid),complaint_id:id,file_name:req.file.originalname,file_path:req.file.path,file_type:req.file.mimetype,uploaded_at:t});});
-router.get('/:id/attachments',(req,res)=>{const id=Number(req.params.id),c=getComplaint(id);if(!c)return fail(res,404,'Complaint not found');if(!allowed(req,c))return fail(res,403,'Forbidden');return ok(res,db.prepare('SELECT * FROM attachments WHERE complaint_id=? ORDER BY uploaded_at').all(id));});
-router.post('/:id/feedback',(req,res)=>{const id=Number(req.params.id),c=getComplaint(id);if(!c)return fail(res,404,'Complaint not found');if(c.user_id!==req.user!.user_id)return fail(res,403,'Only the complaint owner can provide feedback');if(c.status!=='resolved')return fail(res,400,'Feedback is only available after resolution');const p=feedbackSchema.safeParse(req.body);if(!p.success)return fail(res,400,'Rating must be between 1 and 5');try{const t=nowIso();const r=db.prepare('INSERT INTO feedback(complaint_id,user_id,rating,comment,submitted_at) VALUES (?,?,?,?,?)').run(id,req.user!.user_id,p.data.rating,p.data.comment??null,t);return ok(res,{feedback_id:Number(r.lastInsertRowid),complaint_id:id,user_id:req.user!.user_id,rating:p.data.rating,comment:p.data.comment??null,submitted_at:t});}catch{return fail(res,409,'Feedback already submitted')}});
-router.get('/:id/feedback',(req,res)=>{const id=Number(req.params.id),c=getComplaint(id);if(!c)return fail(res,404,'Complaint not found');if(!allowed(req,c)&&req.user!.role!=='admin')return fail(res,403,'Forbidden');return ok(res,db.prepare('SELECT * FROM feedback WHERE complaint_id=?').all(id));});
-export async function reportRows(req:any){const cond:string[]=[];const args:any[]=[];if(req.user.role==='student'){cond.push('c.user_id=?');args.push(req.user.user_id)}if(req.query.from){cond.push('date(c.created_at)>=date(?)');args.push(String(req.query.from))}if(req.query.to){cond.push('date(c.created_at)<=date(?)');args.push(String(req.query.to))}const where=cond.length?' WHERE '+cond.join(' AND '):'';return db.prepare(`${select}${where} ORDER BY c.created_at DESC`).all(...args) as any[];}
+import { Router } from 'express';
+import multer from 'multer';
+import fs from 'node:fs';
+import path from 'node:path';
+
+import { db, nowIso } from '../config/database.js';
+import {
+  authenticate,
+  requireRole,
+} from '../middleware/auth.js';
+import { fail, ok } from '../utils/response.js';
+import { audit } from '../services/audit.js';
+import {
+  complaintSchema,
+  complaintUpdateSchema,
+  statusSchema,
+  assignSchema,
+  commentSchema,
+  feedbackSchema,
+} from '../validators/schemas.js';
+
+const router = Router();
+
+router.use(authenticate);
+
+const uploadDir = path.resolve(
+  process.cwd(),
+  'uploads',
+);
+
+fs.mkdirSync(uploadDir, { recursive: true });
+
+const upload = multer({
+  dest: uploadDir,
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+  },
+});
+
+/*
+ * SDD complaint query.
+ *
+ * Database relationships:
+ *
+ * complaints.user_id       -> users.user_id
+ * complaints.category_id   -> categories.category_id
+ * complaints.department_id -> departments.department_id
+ * users.role_id            -> roles.role_id
+ */
+const select = `
+  SELECT
+    c.complaint_id AS id,
+    c.complaint_id,
+    c.reference_number,
+    c.title,
+    c.description,
+    cat.category_name AS category,
+    c.category_id,
+    c.location,
+    c.priority,
+    c.status,
+    c.user_id,
+    u.username AS user_username,
+    u.email AS user_email,
+    r.role_name AS user_role,
+    d.department_id,
+    d.department_name,
+    c.submitted_at,
+    (
+      SELECT cu.updated_at
+      FROM complaint_updates cu
+      WHERE cu.complaint_id = c.complaint_id
+      ORDER BY cu.updated_at DESC
+      LIMIT 1
+    ) AS last_updated_at
+  FROM complaints c
+  JOIN users u
+    ON u.user_id = c.user_id
+  JOIN roles r
+    ON r.role_id = u.role_id
+  LEFT JOIN categories cat
+    ON cat.category_id = c.category_id
+  LEFT JOIN departments d
+    ON d.department_id = c.department_id
+`;
+
+export function shape(r: any) {
+  return {
+    id: Number(r.id ?? r.complaint_id),
+    complaint_id: Number(
+      r.complaint_id ?? r.id,
+    ),
+    reference_number: r.reference_number,
+    title: r.title,
+    description: r.description,
+    category: r.category,
+    category_id:
+      r.category_id == null
+        ? null
+        : Number(r.category_id),
+    location: r.location,
+    priority: r.priority,
+    status: r.status,
+    user_id: Number(r.user_id),
+
+    user: {
+      id: Number(r.user_id),
+      username: r.user_username,
+      email: r.user_email,
+      role: r.user_role,
+    },
+
+    department:
+      r.department_id == null
+        ? null
+        : {
+            id: Number(r.department_id),
+            name: r.department_name,
+          },
+
+    submitted_at: r.submitted_at,
+    created_at: r.submitted_at,
+    updated_at:
+      r.last_updated_at ?? r.submitted_at,
+  };
+}
+
+function getComplaint(id: number) {
+  return db
+    .prepare(
+      `${select}
+       WHERE c.complaint_id = ?`,
+    )
+    .get(id) as any;
+}
+
+function allowed(req: any, complaint: any) {
+  return (
+    req.user.role !== 'student' ||
+    complaint.user_id === req.user.user_id
+  );
+}
+
+function priority(
+  description: string,
+  category: string,
+) {
+  const d = description.toLowerCase();
+
+  if (
+    [
+      'emergency',
+      'urgent',
+      'critical',
+      'immediate',
+      'danger',
+    ].some((keyword) => d.includes(keyword))
+  ) {
+    return 'critical';
+  }
+
+  if (
+    category === 'Exam Hall' ||
+    category === 'Safety'
+  ) {
+    return 'high';
+  }
+
+  return 'medium';
+}
+
+/*
+ * Create complaint.
+ */
+router.post('/', (req, res) => {
+  const parsed = complaintSchema.safeParse(
+    req.body,
+  );
+
+  if (!parsed.success) {
+    return fail(
+      res,
+      400,
+      'Invalid complaint payload',
+    );
+  }
+
+  const p = parsed.data;
+
+  const category = db
+    .prepare(
+      `SELECT category_id
+       FROM categories
+       WHERE category_name = ?
+         AND is_active = 1`,
+    )
+    .get(p.category) as
+    | { category_id: number }
+    | undefined;
+
+  if (!category) {
+    return fail(res, 400, 'Invalid category');
+  }
+
+  const department = db
+    .prepare(
+      `SELECT department_id
+       FROM departments
+       WHERE department_id = ?
+         AND is_active = 1`,
+    )
+    .get(
+      Number(req.body.department_id),
+    ) as
+    | { department_id: number }
+    | undefined;
+
+  if (!department) {
+    return fail(
+      res,
+      400,
+      'Department not found',
+    );
+  }
+
+  const t = nowIso();
+
+  try {
+    db.exec('BEGIN');
+
+    /*
+     * Temporary reference number is used because the
+     * complaint_id is generated by SQLite.
+     */
+    const result = db
+      .prepare(
+        `INSERT INTO complaints
+         (
+           reference_number,
+           user_id,
+           category_id,
+           department_id,
+           title,
+           description,
+           location,
+           priority,
+           status,
+           submitted_at
+         )
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        'TEMP',
+        req.user!.user_id,
+        category.category_id,
+        department.department_id,
+        p.title,
+        p.description,
+        p.location,
+        priority(
+          p.description,
+          p.category,
+        ),
+        'pending',
+        t,
+      );
+
+    const complaintId = Number(
+      result.lastInsertRowid,
+    );
+
+    const referenceNumber =
+      `UC-${complaintId
+        .toString()
+        .padStart(6, '0')}`;
+
+    db.prepare(
+      `UPDATE complaints
+       SET reference_number = ?
+       WHERE complaint_id = ?`,
+    ).run(
+      referenceNumber,
+      complaintId,
+    );
+
+    db.prepare(
+      `INSERT INTO complaint_updates
+       (
+         complaint_id,
+         updated_by,
+         status,
+         comment,
+         updated_at
+       )
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run(
+      complaintId,
+      req.user!.user_id,
+      'pending',
+      'Complaint submitted',
+      t,
+    );
+
+    /*
+     * Notifications are retained from the existing
+     * application because the notification feature is
+     * already implemented. This will be audited separately
+     * against the migrated user/complaint keys.
+     */
+    db.prepare(
+      `INSERT INTO notifications
+       (
+         user_id,
+         type,
+         title,
+         description,
+         related_complaint_id,
+         created_at,
+         updated_at
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      req.user!.user_id,
+      'complaint',
+      'Complaint submitted',
+      `Your complaint "${p.title}" was submitted successfully.`,
+      complaintId,
+      t,
+      t,
+    );
+
+    audit(
+      req.user!.user_id,
+      'CREATE',
+      'complaints',
+      complaintId,
+    );
+
+    db.exec('COMMIT');
+
+    const complaint =
+      getComplaint(complaintId);
+
+    return ok(
+      res,
+      shape(complaint),
+      'Complaint submitted',
+    );
+  } catch {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      // Ignore rollback errors.
+    }
+
+    return fail(
+      res,
+      500,
+      'Failed to submit complaint',
+    );
+  }
+});
+
+/*
+ * List complaints.
+ */
+router.get('/', (req, res) => {
+  const q = req.query;
+
+  const page = Math.max(
+    1,
+    Number(q.page) || 1,
+  );
+
+  const pageSize = Math.min(
+    100,
+    Math.max(
+      1,
+      Number(q.page_size) || 20,
+    ),
+  );
+
+  const conditions: string[] = [];
+  const args: (string | number)[] = [];
+
+  if (req.user!.role === 'student') {
+    conditions.push(
+      'c.user_id = ?',
+    );
+    args.push(req.user!.user_id);
+  }
+
+  if (q.reference_number) {
+    conditions.push(
+      'c.reference_number = ?',
+    );
+    args.push(
+      String(q.reference_number),
+    );
+  }
+
+  if (q.status) {
+    conditions.push('c.status = ?');
+    args.push(String(q.status));
+  }
+
+  if (q.category) {
+    conditions.push(
+      'cat.category_name = ?',
+    );
+    args.push(String(q.category));
+  }
+
+  if (q.priority) {
+    conditions.push(
+      'c.priority = ?',
+    );
+    args.push(String(q.priority));
+  }
+
+  if (q.department_id) {
+    conditions.push(
+      'c.department_id = ?',
+    );
+    args.push(
+      Number(q.department_id),
+    );
+  }
+
+  const where =
+    conditions.length > 0
+      ? ` WHERE ${conditions.join(
+          ' AND ',
+        )}`
+      : '';
+
+  const totalResult = db
+    .prepare(
+      `SELECT COUNT(*) AS count
+       FROM complaints c
+       LEFT JOIN categories cat
+         ON cat.category_id = c.category_id
+       ${where}`,
+    )
+    .get(...args) as {
+    count: number;
+  };
+
+  const total = Number(
+    totalResult.count,
+  );
+
+  const rows = db
+    .prepare(
+      `${select}
+       ${where}
+       ORDER BY c.submitted_at DESC
+       LIMIT ?
+       OFFSET ?`,
+    )
+    .all(
+      ...args,
+      pageSize,
+      (page - 1) * pageSize,
+    ) as any[];
+
+  return res.json({
+    data: rows.map(shape),
+    total,
+    page,
+    page_size: pageSize,
+    total_pages: Math.max(
+      1,
+      Math.ceil(
+        total / pageSize,
+      ),
+    ),
+  });
+});
+
+/*
+ * Get one complaint.
+ */
+router.get('/:id', (req, res) => {
+  const id = Number(
+    req.params.id,
+  );
+
+  const complaint =
+    getComplaint(id);
+
+  if (!complaint) {
+    return fail(
+      res,
+      404,
+      'Complaint not found',
+    );
+  }
+
+  if (!allowed(req, complaint)) {
+    return fail(
+      res,
+      403,
+      'Forbidden',
+    );
+  }
+
+  return ok(
+    res,
+    shape(complaint),
+  );
+});
+
+/*
+ * Edit complaint.
+ */
+router.put('/:id', (req, res) => {
+  const id = Number(
+    req.params.id,
+  );
+
+  const complaint =
+    getComplaint(id);
+
+  if (!complaint) {
+    return fail(
+      res,
+      404,
+      'Complaint not found',
+    );
+  }
+
+  if (
+    req.user!.role === 'student' &&
+    complaint.user_id !==
+      req.user!.user_id
+  ) {
+    return fail(
+      res,
+      403,
+      'Forbidden',
+    );
+  }
+
+  const parsed =
+    complaintUpdateSchema.safeParse(
+      req.body,
+    );
+
+  if (!parsed.success) {
+    return fail(
+      res,
+      400,
+      'Invalid complaint payload',
+    );
+  }
+
+  const data = parsed.data;
+
+  let categoryId =
+    complaint.category_id;
+
+  if (data.category !== undefined) {
+    const category = db
+      .prepare(
+        `SELECT category_id
+         FROM categories
+         WHERE category_name = ?
+           AND is_active = 1`,
+      )
+      .get(data.category) as
+      | { category_id: number }
+      | undefined;
+
+    if (!category) {
+      return fail(
+        res,
+        400,
+        'Invalid category',
+      );
+    }
+
+    categoryId =
+      category.category_id;
+  }
+
+  const title =
+    data.title ??
+    complaint.title;
+
+  const description =
+    data.description ??
+    complaint.description;
+
+  const location =
+    data.location ??
+    complaint.location;
+
+  const newPriority =
+    data.description !== undefined ||
+    data.category !== undefined
+      ? priority(
+          description,
+          data.category ??
+            complaint.category,
+        )
+      : complaint.priority;
+
+  db.prepare(
+    `UPDATE complaints
+     SET
+       title = ?,
+       description = ?,
+       category_id = ?,
+       location = ?,
+       priority = ?
+     WHERE complaint_id = ?`,
+  ).run(
+    title,
+    description,
+    categoryId,
+    location,
+    newPriority,
+    id,
+  );
+
+  audit(
+    req.user!.user_id,
+    'UPDATE',
+    'complaints',
+    id,
+  );
+
+  return ok(
+    res,
+    shape(getComplaint(id)),
+  );
+});
+
+/*
+ * Delete complaint.
+ */
+router.delete(
+  '/:id',
+  requireRole('admin'),
+  (req, res) => {
+    const id = Number(
+      req.params.id,
+    );
+
+    const result = db
+      .prepare(
+        `DELETE FROM complaints
+         WHERE complaint_id = ?`,
+      )
+      .run(id);
+
+    if (!result.changes) {
+      return fail(
+        res,
+        404,
+        'Complaint not found',
+      );
+    }
+
+    audit(
+      req.user!.user_id,
+      'DELETE',
+      'complaints',
+      id,
+    );
+
+    return ok(res, {
+      message:
+        'Complaint deleted successfully',
+    });
+  },
+);
+
+/*
+ * Assign complaint to department.
+ */
+router.put(
+  '/:id/assign',
+  requireRole('admin', 'staff'),
+  (req, res) => {
+    const id = Number(
+      req.params.id,
+    );
+
+    const parsed =
+      assignSchema.safeParse(
+        req.body,
+      );
+
+    if (!parsed.success) {
+      return fail(
+        res,
+        400,
+        'department_id is required',
+      );
+    }
+
+    const complaint =
+      getComplaint(id);
+
+    if (!complaint) {
+      return fail(
+        res,
+        404,
+        'Complaint not found',
+      );
+    }
+
+    const department = db
+      .prepare(
+        `SELECT department_id
+         FROM departments
+         WHERE department_id = ?
+           AND is_active = 1`,
+      )
+      .get(
+        parsed.data.department_id,
+      );
+
+    if (!department) {
+      return fail(
+        res,
+        404,
+        'Department not found',
+      );
+    }
+
+    const t = nowIso();
+
+    db.prepare(
+      `UPDATE complaints
+       SET department_id = ?
+       WHERE complaint_id = ?`,
+    ).run(
+      parsed.data.department_id,
+      id,
+    );
+
+    db.prepare(
+      `INSERT INTO complaint_updates
+       (
+         complaint_id,
+         updated_by,
+         status,
+         comment,
+         updated_at
+       )
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run(
+      id,
+      req.user!.user_id,
+      complaint.status,
+      `Assigned to department ${parsed.data.department_id}`,
+      t,
+    );
+
+    audit(
+      req.user!.user_id,
+      'ASSIGN',
+      'complaints',
+      id,
+    );
+
+    return ok(
+      res,
+      shape(getComplaint(id)),
+    );
+  },
+);
+
+/*
+ * Update complaint status.
+ */
+router.put(
+  '/:id/status',
+  requireRole('admin', 'staff'),
+  (req, res) => {
+    const id = Number(
+      req.params.id,
+    );
+
+    const parsed =
+      statusSchema.safeParse(
+        req.body,
+      );
+
+    if (!parsed.success) {
+      return fail(
+        res,
+        400,
+        'Invalid status',
+      );
+    }
+
+    const complaint =
+      getComplaint(id);
+
+    if (!complaint) {
+      return fail(
+        res,
+        404,
+        'Complaint not found',
+      );
+    }
+
+    const transitions: Record<
+      string,
+      string[]
+    > = {
+      pending: [
+        'in-progress',
+        'resolved',
+        'closed',
+      ],
+      'in-progress': [
+        'resolved',
+        'closed',
+        'pending',
+      ],
+      resolved: ['closed'],
+      closed: [],
+    };
+
+    if (
+      !transitions[
+        complaint.status
+      ]?.includes(
+        parsed.data.status,
+      )
+    ) {
+      return fail(
+        res,
+        400,
+        `Cannot transition from '${complaint.status}' to '${parsed.data.status}'`,
+      );
+    }
+
+    const t = nowIso();
+
+    db.prepare(
+      `UPDATE complaints
+       SET status = ?
+       WHERE complaint_id = ?`,
+    ).run(
+      parsed.data.status,
+      id,
+    );
+
+    db.prepare(
+      `INSERT INTO complaint_updates
+       (
+         complaint_id,
+         updated_by,
+         status,
+         comment,
+         updated_at
+       )
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run(
+      id,
+      req.user!.user_id,
+      parsed.data.status,
+      `Status changed to ${parsed.data.status}`,
+      t,
+    );
+
+    audit(
+      req.user!.user_id,
+      'UPDATE_STATUS',
+      'complaints',
+      id,
+    );
+
+    return ok(
+      res,
+      shape(getComplaint(id)),
+    );
+  },
+);
+
+/*
+ * Add progress comment.
+ *
+ * Comments are represented by complaint_updates
+ * according to the SDD design.
+ */
+router.post(
+  '/:id/comments',
+  (req, res) => {
+    const id = Number(
+      req.params.id,
+    );
+
+    const complaint =
+      getComplaint(id);
+
+    if (!complaint) {
+      return fail(
+        res,
+        404,
+        'Complaint not found',
+      );
+    }
+
+    if (!allowed(req, complaint)) {
+      return fail(
+        res,
+        403,
+        'Forbidden',
+      );
+    }
+
+    const parsed =
+      commentSchema.safeParse(
+        req.body,
+      );
+
+    if (!parsed.success) {
+      return fail(
+        res,
+        400,
+        'Content is required',
+      );
+    }
+
+    const t = nowIso();
+
+    const result = db
+      .prepare(
+        `INSERT INTO complaint_updates
+         (
+           complaint_id,
+           updated_by,
+           status,
+           comment,
+           updated_at
+         )
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(
+        id,
+        req.user!.user_id,
+        complaint.status,
+        parsed.data.content,
+        t,
+      );
+
+    return ok(res, {
+      id: Number(
+        result.lastInsertRowid,
+      ),
+      complaint_id: id,
+      user_id: req.user!.user_id,
+      status: complaint.status,
+      content: parsed.data.content,
+      created_at: t,
+    });
+  },
+);
+
+/*
+ * Get progress comments.
+ */
+router.get(
+  '/:id/comments',
+  (req, res) => {
+    const id = Number(
+      req.params.id,
+    );
+
+    const complaint =
+      getComplaint(id);
+
+    if (!complaint) {
+      return fail(
+        res,
+        404,
+        'Complaint not found',
+      );
+    }
+
+    if (!allowed(req, complaint)) {
+      return fail(
+        res,
+        403,
+        'Forbidden',
+      );
+    }
+
+    const rows = db
+      .prepare(
+        `SELECT
+           cu.update_id AS id,
+           cu.complaint_id,
+           cu.updated_by AS user_id,
+           u.username,
+           u.email,
+           r.role_name AS role,
+           cu.comment AS content,
+           cu.updated_at AS created_at
+         FROM complaint_updates cu
+         JOIN users u
+           ON u.user_id = cu.updated_by
+         JOIN roles r
+           ON r.role_id = u.role_id
+         WHERE cu.complaint_id = ?
+           AND cu.comment IS NOT NULL
+         ORDER BY cu.updated_at ASC`,
+      )
+      .all(id) as any[];
+
+    return ok(
+      res,
+      rows.map((row) => ({
+        ...row,
+        user: {
+          id: Number(row.user_id),
+          username: row.username,
+          email: row.email,
+          role: row.role,
+        },
+      })),
+    );
+  },
+);
+
+/*
+ * Upload attachment.
+ */
+router.post(
+  '/:id/attachments',
+  upload.single('file'),
+  (req, res) => {
+    const id = Number(
+      req.params.id,
+    );
+
+    const complaint =
+      getComplaint(id);
+
+    if (!complaint) {
+      return fail(
+        res,
+        404,
+        'Complaint not found',
+      );
+    }
+
+    if (!allowed(req, complaint)) {
+      return fail(
+        res,
+        403,
+        'Forbidden',
+      );
+    }
+
+    if (!req.file) {
+      return fail(
+        res,
+        400,
+        'File is required',
+      );
+    }
+
+    const t = nowIso();
+
+    const result = db
+      .prepare(
+        `INSERT INTO attachments
+         (
+           complaint_id,
+           file_name,
+           file_path,
+           file_type,
+           uploaded_at
+         )
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(
+        id,
+        req.file.originalname,
+        req.file.path,
+        req.file.mimetype,
+        t,
+      );
+
+    return ok(res, {
+      attachment_id: Number(
+        result.lastInsertRowid,
+      ),
+      complaint_id: id,
+      file_name:
+        req.file.originalname,
+      file_path: req.file.path,
+      file_type: req.file.mimetype,
+      uploaded_at: t,
+    });
+  },
+);
+
+/*
+ * Get attachments.
+ */
+router.get(
+  '/:id/attachments',
+  (req, res) => {
+    const id = Number(
+      req.params.id,
+    );
+
+    const complaint =
+      getComplaint(id);
+
+    if (!complaint) {
+      return fail(
+        res,
+        404,
+        'Complaint not found',
+      );
+    }
+
+    if (!allowed(req, complaint)) {
+      return fail(
+        res,
+        403,
+        'Forbidden',
+      );
+    }
+
+    const rows = db
+      .prepare(
+        `SELECT
+           attachment_id,
+           complaint_id,
+           file_name,
+           file_path,
+           file_type,
+           uploaded_at
+         FROM attachments
+         WHERE complaint_id = ?
+         ORDER BY uploaded_at ASC`,
+      )
+      .all(id);
+
+    return ok(res, rows);
+  },
+);
+
+/*
+ * Submit feedback.
+ */
+router.post(
+  '/:id/feedback',
+  (req, res) => {
+    const id = Number(
+      req.params.id,
+    );
+
+    const complaint =
+      getComplaint(id);
+
+    if (!complaint) {
+      return fail(
+        res,
+        404,
+        'Complaint not found',
+      );
+    }
+
+    if (
+      complaint.user_id !==
+      req.user!.user_id
+    ) {
+      return fail(
+        res,
+        403,
+        'Only the complaint owner can provide feedback',
+      );
+    }
+
+    if (complaint.status !== 'resolved') {
+      return fail(
+        res,
+        400,
+        'Feedback is only available after resolution',
+      );
+    }
+
+    const parsed =
+      feedbackSchema.safeParse(
+        req.body,
+      );
+
+    if (!parsed.success) {
+      return fail(
+        res,
+        400,
+        'Rating must be between 1 and 5',
+      );
+    }
+
+    try {
+      const t = nowIso();
+
+      const result = db
+        .prepare(
+          `INSERT INTO feedback
+           (
+             complaint_id,
+             user_id,
+             rating,
+             comment,
+             submitted_at
+           )
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(
+          id,
+          req.user!.user_id,
+          parsed.data.rating,
+          parsed.data.comment ??
+            null,
+          t,
+        );
+
+      return ok(res, {
+        feedback_id: Number(
+          result.lastInsertRowid,
+        ),
+        complaint_id: id,
+        user_id: req.user!.user_id,
+        rating: parsed.data.rating,
+        comment:
+          parsed.data.comment ??
+          null,
+        submitted_at: t,
+      });
+    } catch {
+      return fail(
+        res,
+        409,
+        'Feedback already submitted',
+      );
+    }
+  },
+);
+
+/*
+ * Get feedback.
+ */
+router.get(
+  '/:id/feedback',
+  (req, res) => {
+    const id = Number(
+      req.params.id,
+    );
+
+    const complaint =
+      getComplaint(id);
+
+    if (!complaint) {
+      return fail(
+        res,
+        404,
+        'Complaint not found',
+      );
+    }
+
+    if (
+      !allowed(req, complaint) &&
+      req.user!.role !== 'admin'
+    ) {
+      return fail(
+        res,
+        403,
+        'Forbidden',
+      );
+    }
+
+    return ok(
+      res,
+      db
+        .prepare(
+          `SELECT
+             feedback_id,
+             complaint_id,
+             user_id,
+             rating,
+             comment,
+             submitted_at
+           FROM feedback
+           WHERE complaint_id = ?
+           ORDER BY submitted_at ASC`,
+        )
+        .all(id),
+    );
+  },
+);
+
+/*
+ * Report rows.
+ *
+ * FR20: complaint summary report for a date range.
+ */
+export async function reportRows(
+  req: any,
+) {
+  const conditions: string[] = [];
+  const args: (string | number)[] = [];
+
+  if (req.user.role === 'student') {
+    conditions.push(
+      'c.user_id = ?',
+    );
+    args.push(req.user.user_id);
+  }
+
+  if (req.query.from) {
+    conditions.push(
+      `date(c.submitted_at) >= date(?)`,
+    );
+    args.push(
+      String(req.query.from),
+    );
+  }
+
+  if (req.query.to) {
+    conditions.push(
+      `date(c.submitted_at) <= date(?)`,
+    );
+    args.push(
+      String(req.query.to),
+    );
+  }
+
+  const where =
+    conditions.length > 0
+      ? ` WHERE ${conditions.join(
+          ' AND ',
+        )}`
+      : '';
+
+  return db
+    .prepare(
+      `${select}
+       ${where}
+       ORDER BY c.submitted_at DESC`,
+    )
+    .all(...args) as any[];
+}
+
 export default router;

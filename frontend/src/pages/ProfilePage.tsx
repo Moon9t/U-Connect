@@ -1,15 +1,23 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Mail, Shield, Building2, Calendar, Lock } from 'lucide-react';
+import { Mail, Shield, Calendar } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
   const { user, role } = useAuth();
 
+  const username = user?.username || 'User';
+  const initial = username.charAt(0).toUpperCase();
+
   return (
-    <div className="page-container animate-fade-in" style={{ maxWidth: '780px' }}>
+    <div
+      className="page-container animate-fade-in"
+      style={{ maxWidth: '780px' }}
+    >
       <div style={{ marginBottom: '24px' }}>
         <h1 className="page-title">User Profile</h1>
-        <p className="page-subtitle">Your credentials and role settings within U-Connect.</p>
+        <p className="page-subtitle">
+          Your credentials and role settings within U-Connect.
+        </p>
       </div>
 
       <div className="card" style={{ padding: '32px' }}>
@@ -37,14 +45,24 @@ export const ProfilePage: React.FC = () => {
               fontWeight: 800,
             }}
           >
-            {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+            {initial}
           </div>
 
           <div>
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#0f172a' }}>
-              {user?.name}
+            <h2
+              style={{
+                fontSize: '1.35rem',
+                fontWeight: 700,
+                color: '#0f172a',
+              }}
+            >
+              {username}
             </h2>
-            <p style={{ fontSize: '0.85rem', color: '#64748b' }}>{user?.email}</p>
+
+            <p style={{ fontSize: '0.85rem', color: '#64748b' }}>
+              {user?.email}
+            </p>
+
             <div
               style={{
                 display: 'inline-flex',
@@ -60,35 +78,72 @@ export const ProfilePage: React.FC = () => {
                 textTransform: 'uppercase',
               }}
             >
-              <Shield size={12} /> {role}
+              <Shield size={12} />
+              {role}
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: '20px',
+          }}
+        >
           <div>
-            <label className="form-label" style={{ color: '#64748b', fontSize: '0.8rem' }}>
-              Full Name
+            <label
+              className="form-label"
+              style={{ color: '#64748b', fontSize: '0.8rem' }}
+            >
+              Username
             </label>
-            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0f172a' }}>
-              {user?.name}
+
+            <div
+              style={{
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                color: '#0f172a',
+              }}
+            >
+              {user?.username}
             </div>
           </div>
 
           <div>
-            <label className="form-label" style={{ color: '#64748b', fontSize: '0.8rem' }}>
+            <label
+              className="form-label"
+              style={{ color: '#64748b', fontSize: '0.8rem' }}
+            >
               University Email
             </label>
-            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0f172a' }}>
+
+            <div
+              style={{
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                color: '#0f172a',
+              }}
+            >
               {user?.email}
             </div>
           </div>
 
           <div>
-            <label className="form-label" style={{ color: '#64748b', fontSize: '0.8rem' }}>
+            <label
+              className="form-label"
+              style={{ color: '#64748b', fontSize: '0.8rem' }}
+            >
               Role Boundary
             </label>
-            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0f172a' }}>
+
+            <div
+              style={{
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                color: '#0f172a',
+              }}
+            >
               {role === 'admin'
                 ? 'System Administrator (Full Oversight)'
                 : role === 'staff'
@@ -98,11 +153,74 @@ export const ProfilePage: React.FC = () => {
           </div>
 
           <div>
-            <label className="form-label" style={{ color: '#64748b', fontSize: '0.8rem' }}>
-              Assigned Department
+            <label
+              className="form-label"
+              style={{ color: '#64748b', fontSize: '0.8rem' }}
+            >
+              Account Status
             </label>
-            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0f172a' }}>
-              {user?.department?.name || 'General / Student Affairs'}
+
+            <div
+              style={{
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                color: user?.is_active ? '#16a34a' : '#dc2626',
+              }}
+            >
+              {user?.is_active ? 'Active' : 'Inactive'}
+            </div>
+          </div>
+
+          <div>
+            <label
+              className="form-label"
+              style={{ color: '#64748b', fontSize: '0.8rem' }}
+            >
+              Account Created
+            </label>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                color: '#0f172a',
+              }}
+            >
+              <Calendar size={15} />
+
+              {user?.created_at
+                ? new Date(user.created_at).toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })
+                : 'Not available'}
+            </div>
+          </div>
+
+          <div>
+            <label
+              className="form-label"
+              style={{ color: '#64748b', fontSize: '0.8rem' }}
+            >
+              Contact Email
+            </label>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                color: '#0f172a',
+              }}
+            >
+              <Mail size={15} />
+              {user?.email}
             </div>
           </div>
         </div>

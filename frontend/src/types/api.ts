@@ -3,23 +3,17 @@ export type UserRole = 'admin' | 'staff' | 'student';
 export interface Department {
   id: number;
   name: string;
-  code: string;
   description?: string | null;
   created_at?: string;
-  updated_at?: string;
 }
 
 export interface User {
   id: number;
-  name: string;
   username: string;
   email: string;
   role: UserRole;
-  department_id?: number | null;
-  department?: Department | null;
   is_active?: boolean | number;
   created_at?: string;
-  updated_at?: string;
 }
 
 export type ComplaintCategory =
@@ -32,7 +26,12 @@ export type ComplaintCategory =
   | 'Student Affairs';
 
 export type ComplaintPriority = 'low' | 'medium' | 'high' | 'critical';
-export type ComplaintStatus = 'pending' | 'in-progress' | 'resolved' | 'closed';
+
+export type ComplaintStatus =
+  | 'pending'
+  | 'in-progress'
+  | 'resolved'
+  | 'closed';
 
 export interface Comment {
   id: number;
@@ -90,16 +89,15 @@ export interface Complaint {
   title: string;
   description: string;
   category: ComplaintCategory | string;
+  category_id?: number | null;
   location: string;
   priority: ComplaintPriority | string;
   status: ComplaintStatus;
-  anonymous: boolean;
-  sla_escalated: boolean;
   user_id: number;
   user?: User | null;
-  department_id: number;
+  department_id?: number | null;
   department?: Department | null;
-  resolved_at?: string | null;
+  submitted_at: string;
   created_at: string;
   updated_at: string;
   comments?: Comment[];
@@ -144,8 +142,6 @@ export interface CreateComplaintPayload {
   description: string;
   category: string;
   location: string;
-  department_id: number;
-  anonymous?: boolean;
 }
 
 export interface UpdateComplaintPayload {
@@ -153,6 +149,7 @@ export interface UpdateComplaintPayload {
   description?: string;
   category?: string;
   location?: string;
+  priority?: ComplaintPriority | string;
 }
 
 export interface ComplaintFilters {
@@ -182,10 +179,8 @@ export interface StatusReportRow {
 }
 
 export interface CreateUserPayload {
-  name: string;
   username: string;
   email: string;
   password: string;
   role?: UserRole;
-  department_id?: number;
 }

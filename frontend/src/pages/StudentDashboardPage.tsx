@@ -86,7 +86,7 @@ export const StudentDashboardPage: React.FC<StudentDashboardPageProps> = ({
         }}
       >
         <div>
-          <h1 className="page-title">Welcome, {user?.name || 'Student User'}!</h1>
+          <h1 className="page-title">Welcome, {user?.username || 'Student User'}!</h1>
           <p className="page-subtitle">Your voice helps make our university a better place.</p>
         </div>
 

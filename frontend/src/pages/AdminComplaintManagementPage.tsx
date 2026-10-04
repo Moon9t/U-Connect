@@ -143,7 +143,7 @@ export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPage
     const query = searchQuery.toLowerCase();
     const refNo = c.reference_number.toLowerCase();
     const titleMatch = c.title.toLowerCase().includes(query);
-    const userMatch = c.user?.name ? c.user.name.toLowerCase().includes(query) : false;
+    const userMatch = c.user?.username ? c.user.username.toLowerCase().includes(query) : false;
     return refNo.includes(query) || titleMatch || userMatch;
   });
 
@@ -374,12 +374,7 @@ export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPage
                     year: 'numeric',
                   });
 
-                  // Rule 4: Complainant Anonymous Masking
-                  const complainantName = c.anonymous
-                    ? role === 'admin'
-                      ? `${c.user?.name || 'Student'} (Anon)`
-                      : 'Anonymous'
-                    : c.user?.name || 'Student User';
+                  const complainantName = c.user?.username || 'Student User';
 
                   const isDropdownOpen = openDropdownId === c.id;
 

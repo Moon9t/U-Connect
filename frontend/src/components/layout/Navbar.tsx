@@ -1,97 +1,73 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { notificationService } from '../../services/notification.service';
-import { Notification } from '../../types/api';
-import { Logo } from '../common/Logo';
-
 import {
   Bell,
   ChevronDown,
   LogOut,
   User as UserIcon,
-  Search,
-  CheckCheck,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../common/Toast';
+import { notificationService } from '../../services/notification.service';
+import { Notification } from '../../types/api';
+import { Logo } from '../common/Logo';
 
 interface NavbarProps {
-  onNavigateToProfile?: () => void;
   onNavigateToComplaints?: (complaintId?: number) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-  onNavigateToProfile,
   onNavigateToComplaints,
 }) => {
-  const { user, role, logout } = useAuth();
+  const { user, logout } = useAuth();
+  const { error } = useToast();
 
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [isLoadingNotifications, setIsLoadingNotifications] =
+    useState(false);
 
-  const initial = user?.name
-    ? user.name.charAt(0).toUpperCase()
-    : role === 'admin'
-      ? 'A'
-      : 'S';
+  const initial = user?.username
+    ? user.username.charAt(0).toUpperCase()
+    : 'U';
 
-  const roleLabel =
-    role === 'admin'
-      ? 'Administrator'
-      : role === 'staff'
-        ? 'Staff Member'
-        : 'Student';
+  const displayName = user?.username || 'User';
 
-  const displayName =
-    user?.name ||
-    (role === 'admin' ? 'Admin User' : 'Student User');
+  const loadNotifications = async () => {
+    setIsLoadingNotifications(true);
+
+    try {
+      const data = await notificationService.getNotifications();
+      setNotifications(data || []);
+    } catch (err: any) {
+      error(err.message || 'Failed to load notifications');
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  };
 
   useEffect(() => {
-    if (!user) {
+    if (user) {
+      loadNotifications();
+    } else {
       setNotifications([]);
-      return;
     }
-
-    setNotificationsLoading(true);
-
-    notificationService
-      .getNotifications()
-      .then(setNotifications)
-      .catch(() => setNotifications([]))
-      .finally(() => setNotificationsLoading(false));
-  }, [user?.id]);
+  }, [user]);
 
   const unreadCount = notifications.filter(
     (notification) => !notification.read_at
   ).length;
 
-  const formatNotificationTime = (createdAt: string) => {
-    const elapsedMinutes = Math.max(
-      0,
-      Math.floor(
-        (Date.now() - new Date(createdAt).getTime()) / 60000
-      )
-    );
-
-    if (elapsedMinutes < 1) return 'Just now';
-
-    if (elapsedMinutes < 60) {
-      return `${elapsedMinutes}m ago`;
-    }
-
-    const elapsedHours = Math.floor(elapsedMinutes / 60);
-
-    if (elapsedHours < 24) {
-      return `${elapsedHours}h ago`;
-    }
-
-    return `${Math.floor(elapsedHours / 24)}d ago`;
-  };
-
   const markNotificationAsRead = async (
     notification: Notification
   ) => {
-    if (notification.read_at) return;
+    if (notification.read_at) {
+      setNotificationsOpen(false);
+      onNavigateToComplaints?.(
+        notification.related_complaint_id
+      );
+      return;
+    }
 
     try {
       await notificationService.markAsRead(notification.id);
@@ -111,98 +87,104 @@ export const Navbar: React.FC<NavbarProps> = ({
     }
 
     setNotificationsOpen(false);
-    onNavigateToComplaints?.(notification.related_complaint_id);
+    onNavigateToComplaints?.(
+      notification.related_complaint_id
+    );
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+
+      const timestamp = new Date().toISOString();
+
+      setNotifications((current) =>
+        current.map((notification) => ({
+          ...notification,
+          read_at: notification.read_at || timestamp,
+        }))
+      );
+    } catch (err: any) {
+      error(err.message || 'Failed to mark notifications as read');
+    }
+  };
+
+  const handleLogout = () => {
+    setProfileOpen(false);
+    logout();
+  };
+
+  const formatNotificationDate = (date: string) => {
+    const value = new Date(date);
+
+    if (Number.isNaN(value.getTime())) {
+      return '';
+    }
+
+    return value.toLocaleString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   return (
     <header
       style={{
-        height: '72px',
-        backgroundColor: '#ffffff',
-        borderBottom: '1px solid var(--neutral-200)',
+        height: '64px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 24px',
+        backgroundColor: '#ffffff',
+        borderBottom: '1px solid #e4e4e7',
         position: 'sticky',
         top: 0,
-        zIndex: 40,
+        zIndex: 30,
       }}
     >
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '16px',
+          gap: '12px',
         }}
       >
         <Logo />
-
-        <div
-          style={{
-            position: 'relative',
-            width: '280px',
-          }}
-        >
-          <Search
-            size={18}
-            style={{
-              position: 'absolute',
-              left: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: '#94a3b8',
-            }}
-          />
-
-          <input
-            type="text"
-            placeholder="Search..."
-            style={{
-              width: '100%',
-              height: '38px',
-              border: '1px solid var(--neutral-200)',
-              borderRadius: '8px',
-              padding: '0 12px 0 38px',
-              outline: 'none',
-              fontSize: '0.85rem',
-              color: '#334155',
-              backgroundColor: '#f8fafc',
-            }}
-          />
-        </div>
       </div>
 
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '16px',
+          gap: '12px',
         }}
       >
+        {/* Notifications */}
         <div style={{ position: 'relative' }}>
           <button
             type="button"
-            onClick={() =>
-              setNotificationsOpen((current) => !current)
-            }
+            onClick={() => {
+              setNotificationsOpen((open) => !open);
+              setProfileOpen(false);
+            }}
+            aria-label="Notifications"
+            className="btn"
             style={{
+              position: 'relative',
               width: '40px',
               height: '40px',
-              border: 'none',
-              backgroundColor: notificationsOpen
-                ? '#f1f5f9'
-                : 'transparent',
-              borderRadius: '8px',
+              padding: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              cursor: 'pointer',
-              position: 'relative',
+              backgroundColor: 'transparent',
+              border: 'none',
+              color: '#52525b',
             }}
-            aria-label="Notifications"
           >
-            <Bell size={20} color="#475569" />
+            <Bell size={20} />
 
             {unreadCount > 0 && (
               <span
@@ -214,7 +196,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   height: '17px',
                   padding: '0 4px',
                   borderRadius: '999px',
-                  backgroundColor: '#2563eb',
+                  backgroundColor: '#18181b',
                   color: '#ffffff',
                   fontSize: '0.65rem',
                   fontWeight: 700,
@@ -232,50 +214,53 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div
               style={{
                 position: 'absolute',
-                right: 0,
                 top: '48px',
+                right: 0,
                 width: '360px',
+                maxWidth: 'calc(100vw - 32px)',
                 backgroundColor: '#ffffff',
-                border: '1px solid var(--neutral-200)',
-                borderRadius: '10px',
+                border: '1px solid #e4e4e7',
+                borderRadius: '12px',
                 boxShadow:
-                  '0 10px 30px rgba(15, 23, 42, 0.12)',
+                  '0 10px 30px rgba(0, 0, 0, 0.12)',
                 overflow: 'hidden',
-                zIndex: 100,
+                zIndex: 50,
               }}
             >
               <div
                 style={{
                   padding: '14px 16px',
-                  borderBottom:
-                    '1px solid var(--neutral-100)',
+                  borderBottom: '1px solid #f4f4f5',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                 }}
               >
-                <div
+                <strong
                   style={{
-                    fontWeight: 700,
-                    color: '#1e293b',
+                    fontSize: '0.9rem',
+                    color: '#18181b',
                   }}
                 >
                   Notifications
-                </div>
+                </strong>
 
                 {unreadCount > 0 && (
-                  <div
+                  <button
+                    type="button"
+                    onClick={markAllNotificationsAsRead}
                     style={{
-                      fontSize: '0.75rem',
-                      color: '#2563eb',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
+                      border: 'none',
+                      background: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      color: '#52525b',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
                     }}
                   >
-                    <CheckCheck size={14} />
-                    {unreadCount} unread
-                  </div>
+                    Mark all as read
+                  </button>
                 )}
               </div>
 
@@ -285,211 +270,251 @@ export const Navbar: React.FC<NavbarProps> = ({
                   overflowY: 'auto',
                 }}
               >
-                {notificationsLoading && (
+                {isLoadingNotifications ? (
                   <div
                     style={{
-                      padding: '18px 16px',
-                      color: '#64748b',
+                      padding: '24px 16px',
+                      textAlign: 'center',
+                      color: '#71717a',
                       fontSize: '0.8rem',
                     }}
                   >
                     Loading notifications...
                   </div>
-                )}
-
-                {!notificationsLoading &&
-                  notifications.length === 0 && (
-                    <div
+                ) : notifications.length === 0 ? (
+                  <div
+                    style={{
+                      padding: '24px 16px',
+                      textAlign: 'center',
+                      color: '#71717a',
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    No notifications.
+                  </div>
+                ) : (
+                  notifications.map((notification) => (
+                    <button
+                      type="button"
+                      key={notification.id}
+                      onClick={() =>
+                        markNotificationAsRead(notification)
+                      }
                       style={{
-                        padding: '18px 16px',
-                        color: '#64748b',
-                        fontSize: '0.8rem',
-                      }}
-                    >
-                      You have no notifications.
-                    </div>
-                  )}
-
-                {!notificationsLoading &&
-                  notifications.map((n) => (
-                    <div
-                      key={n.id}
-                      onClick={() => markNotificationAsRead(n)}
-                      style={{
+                        width: '100%',
+                        display: 'block',
+                        textAlign: 'left',
                         padding: '12px 16px',
-                        borderBottom:
-                          '1px solid var(--neutral-100)',
-                        fontSize: '0.8rem',
-                        backgroundColor: n.read_at
+                        border: 'none',
+                        borderBottom: '1px solid #f4f4f5',
+                        backgroundColor: notification.read_at
                           ? '#ffffff'
-                          : '#eff6ff',
-                        cursor: n.read_at
-                          ? 'default'
-                          : 'pointer',
+                          : '#f4f4f5',
+                        cursor: 'pointer',
                       }}
                     >
                       <div
                         style={{
-                          fontWeight: n.read_at ? 500 : 700,
-                          color: '#1e3a8a',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          justifyContent: 'space-between',
+                          gap: '8px',
                         }}
                       >
-                        {n.title}
+                        <strong
+                          style={{
+                            fontSize: '0.8rem',
+                            color: '#18181b',
+                          }}
+                        >
+                          {notification.title}
+                        </strong>
+
+                        {!notification.read_at && (
+                          <span
+                            style={{
+                              width: '7px',
+                              height: '7px',
+                              flexShrink: 0,
+                              marginTop: '4px',
+                              borderRadius: '50%',
+                              backgroundColor: '#18181b',
+                            }}
+                          />
+                        )}
                       </div>
 
                       <div
                         style={{
-                          color: '#64748b',
-                          marginTop: '2px',
+                          marginTop: '4px',
+                          color: '#52525b',
+                          fontSize: '0.75rem',
                           lineHeight: 1.4,
                         }}
                       >
-                        {n.description}
+                        {notification.description}
                       </div>
 
                       <div
                         style={{
-                          color: '#94a3b8',
-                          fontSize: '0.7rem',
-                          marginTop: '4px',
+                          marginTop: '6px',
+                          color: '#a1a1aa',
+                          fontSize: '0.68rem',
                         }}
                       >
-                        {formatNotificationTime(n.created_at)}
+                        {formatNotificationDate(
+                          notification.created_at
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    </button>
+                  ))
+                )}
               </div>
             </div>
           )}
         </div>
 
+        {/* Profile */}
         <div style={{ position: 'relative' }}>
           <button
             type="button"
-            onClick={() =>
-              setDropdownOpen((current) => !current)
-            }
+            onClick={() => {
+              setProfileOpen((open) => !open);
+              setNotificationsOpen(false);
+            }}
+            className="btn"
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
-              border: 'none',
+              gap: '8px',
+              padding: '4px 8px',
               backgroundColor: 'transparent',
+              border: 'none',
+              color: '#18181b',
               cursor: 'pointer',
-              padding: '4px',
             }}
           >
-            <div
+            <span
               style={{
-                width: '38px',
-                height: '38px',
+                width: '32px',
+                height: '32px',
                 borderRadius: '50%',
-                backgroundColor: '#dbeafe',
-                color: '#1d4ed8',
+                backgroundColor: '#18181b',
+                color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                fontSize: '0.8rem',
                 fontWeight: 700,
               }}
             >
               {initial}
-            </div>
+            </span>
 
-            <div
+            <span
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
+                fontSize: '0.8rem',
+                fontWeight: 600,
               }}
             >
-              <span
-                style={{
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  color: '#1e293b',
-                }}
-              >
-                {displayName}
-              </span>
+              {displayName}
+            </span>
 
-              <span
-                style={{
-                  fontSize: '0.7rem',
-                  color: '#64748b',
-                }}
-              >
-                {roleLabel}
-              </span>
-            </div>
-
-            <ChevronDown
-              size={16}
-              color="#64748b"
-            />
+            <ChevronDown size={15} />
           </button>
 
-          {dropdownOpen && (
+          {profileOpen && (
             <div
               style={{
                 position: 'absolute',
+                top: '44px',
                 right: 0,
-                top: '52px',
-                width: '200px',
+                width: '190px',
                 backgroundColor: '#ffffff',
-                border: '1px solid var(--neutral-200)',
-                borderRadius: '8px',
+                border: '1px solid #e4e4e7',
+                borderRadius: '10px',
                 boxShadow:
-                  '0 10px 25px rgba(15, 23, 42, 0.12)',
-                padding: '6px',
-                zIndex: 100,
+                  '0 10px 30px rgba(0, 0, 0, 0.12)',
+                overflow: 'hidden',
+                zIndex: 50,
               }}
             >
+              <div
+                style={{
+                  padding: '12px 14px',
+                  borderBottom: '1px solid #f4f4f5',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: '#18181b',
+                  }}
+                >
+                  {displayName}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: '2px',
+                    fontSize: '0.7rem',
+                    color: '#71717a',
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  {user?.role || 'user'}
+                </div>
+              </div>
+
               <button
                 type="button"
                 onClick={() => {
-                  setDropdownOpen(false);
-                  onNavigateToProfile?.();
+                  setProfileOpen(false);
+                  window.dispatchEvent(
+                    new CustomEvent('uconnect:navigate', {
+                      detail: { page: 'profile' },
+                    })
+                  );
                 }}
                 style={{
                   width: '100%',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '10px',
-                  padding: '10px',
+                  gap: '8px',
+                  padding: '10px 14px',
                   border: 'none',
-                  backgroundColor: 'transparent',
-                  borderRadius: '6px',
+                  backgroundColor: '#ffffff',
                   cursor: 'pointer',
-                  color: '#334155',
+                  color: '#3f3f46',
+                  fontSize: '0.8rem',
                   textAlign: 'left',
                 }}
               >
-                <UserIcon size={17} />
+                <UserIcon size={15} />
                 Profile
               </button>
 
               <button
                 type="button"
-                onClick={async () => {
-                  setDropdownOpen(false);
-                  await logout();
-                }}
+                onClick={handleLogout}
                 style={{
                   width: '100%',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '10px',
-                  padding: '10px',
+                  gap: '8px',
+                  padding: '10px 14px',
                   border: 'none',
-                  backgroundColor: 'transparent',
-                  borderRadius: '6px',
+                  borderTop: '1px solid #f4f4f5',
+                  backgroundColor: '#ffffff',
                   cursor: 'pointer',
-                  color: '#dc2626',
+                  color: '#3f3f46',
+                  fontSize: '0.8rem',
                   textAlign: 'left',
                 }}
               >
-                <LogOut size={17} />
-                Logout
+                <LogOut size={15} />
+                Sign out
               </button>
             </div>
           )}

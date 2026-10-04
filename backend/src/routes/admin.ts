@@ -1,8 +1,210 @@
-import { Router } from 'express'; import { db, nowIso } from '../config/database.js'; import { authenticate, requireRole } from '../middleware/auth.js'; import { hashPassword } from '../utils/auth.js'; import { fail, ok } from '../utils/response.js'; import { audit } from '../services/audit.js';
-const router=Router(); router.use(authenticate,requireRole('admin'));
-router.get('/users',(_req,res)=>ok(res,db.prepare(`SELECT id,name,username,email,role,department_id,is_active,created_at,updated_at FROM users ORDER BY created_at DESC`).all()));
-router.post('/users',async(req,res)=>{const {name,username,email,password,role='student',department_id}=req.body||{};if(!name||!username||!email||!password)return fail(res,400,'name, username, email and password are required');if(!['admin','staff','student'].includes(role))return fail(res,400,'Invalid role');const ex=db.prepare('SELECT id FROM users WHERE lower(username)=lower(?) OR lower(email)=lower(?)').get(username,email);if(ex)return fail(res,409,'Username or email already exists');const t=nowIso();const r=db.prepare(`INSERT INTO users(name,username,email,password_hash,role,department_id,is_active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)`).run(name,username,email,await hashPassword(password),role,department_id??null,1,t,t);audit(req.user!.user_id,'CREATE','users',Number(r.lastInsertRowid));return ok(res,{id:Number(r.lastInsertRowid),name,username,email,role,department_id:department_id??null,is_active:1,created_at:t,updated_at:t});});
-router.put('/users/:id/role',(req,res)=>{const id=Number(req.params.id),role=req.body?.role;if(!['admin','staff','student'].includes(role))return fail(res,400,'Invalid role');const r=db.prepare('UPDATE users SET role=?,updated_at=? WHERE id=?').run(role,nowIso(),id);if(!r.changes)return fail(res,404,'User not found');audit(req.user!.user_id,'UPDATE_ROLE','users',id);return ok(res,{message:'User role updated successfully'});});
-router.put('/users/:id/deactivate',(req,res)=>{const id=Number(req.params.id);if(id===req.user!.user_id)return fail(res,400,'Administrators cannot deactivate their own account');const r=db.prepare('UPDATE users SET is_active=0,updated_at=? WHERE id=?').run(nowIso(),id);if(!r.changes)return fail(res,404,'User not found');audit(req.user!.user_id,'DEACTIVATE','users',id);return ok(res,{message:'User account deactivated successfully'});});
-router.put('/users/:id',(req,res)=>{const id=Number(req.params.id);const u=db.prepare('SELECT * FROM users WHERE id=?').get(id) as any;if(!u)return fail(res,404,'User not found');const t=nowIso();db.prepare('UPDATE users SET name=?,email=?,department_id=?,updated_at=? WHERE id=?').run(req.body.name??u.name,req.body.email??u.email,req.body.department_id??u.department_id,t,id);audit(req.user!.user_id,'UPDATE','users',id);return ok(res,{id,name:req.body.name??u.name,username:u.username,email:req.body.email??u.email,role:u.role,department_id:req.body.department_id??u.department_id,is_active:u.is_active,updated_at:t});});
+import { Router } from 'express';
+import { db, nowIso } from '../config/database.js';
+import {
+  authenticate,
+  requireRole,
+} from '../middleware/auth.js';
+import { hashPassword } from '../utils/auth.js';
+import { fail, ok } from '../utils/response.js';
+import { audit } from '../services/audit.js';
+
+const router = Router();
+
+router.use(
+  authenticate,
+  requireRole('admin'),
+);
+
+router.get('/users', (_req, res) => {
+  const rows = db
+    .prepare(
+      `SELECT
+         u.user_id AS id,
+         u.username,
+         u.email,
+         r.role_name AS role,
+         u.is_active,
+         u.created_at
+       FROM users u
+       JOIN roles r ON r.role_id = u.role_id
+       ORDER BY u.created_at DESC`,
+    )
+    .all();
+
+  return ok(res, rows);
+});
+
+router.post('/users', async (req, res) => {
+  const {
+    username,
+    email,
+    password,
+    role = 'student',
+  } = req.body || {};
+
+  if (!username || !email || !password) {
+    return fail(
+      res,
+      400,
+      'username, email and password are required',
+    );
+  }
+
+  if (
+    !['admin', 'staff', 'student'].includes(role)
+  ) {
+    return fail(res, 400, 'Invalid role');
+  }
+
+  const roleRow = db
+    .prepare(
+      'SELECT role_id, role_name FROM roles WHERE role_name=?',
+    )
+    .get(role) as
+    | {
+        role_id: number;
+        role_name: string;
+      }
+    | undefined;
+
+  if (!roleRow) {
+    return fail(res, 400, 'Invalid role');
+  }
+
+  const existing = db
+    .prepare(
+      `SELECT user_id
+       FROM users
+       WHERE lower(username) = lower(?)
+          OR lower(email) = lower(?)`,
+    )
+    .get(username, email);
+
+  if (existing) {
+    return fail(
+      res,
+      409,
+      'Username or email already exists',
+    );
+  }
+
+  const t = nowIso();
+
+  const result = db
+    .prepare(
+      `INSERT INTO users
+       (username, password_hash, email, role_id, is_active, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      username,
+      await hashPassword(password),
+      email,
+      roleRow.role_id,
+      1,
+      t,
+    );
+
+  const id = Number(result.lastInsertRowid);
+
+  audit(
+    req.user!.user_id,
+    'CREATE',
+    'users',
+    id,
+  );
+
+  return ok(res, {
+    id,
+    username,
+    email,
+    role: roleRow.role_name,
+    is_active: 1,
+    created_at: t,
+  });
+});
+
+router.put('/users/:id/role', (req, res) => {
+  const id = Number(req.params.id);
+  const role = req.body?.role;
+
+  if (
+    !['admin', 'staff', 'student'].includes(role)
+  ) {
+    return fail(res, 400, 'Invalid role');
+  }
+
+  const roleRow = db
+    .prepare(
+      'SELECT role_id, role_name FROM roles WHERE role_name=?',
+    )
+    .get(role) as
+    | {
+        role_id: number;
+        role_name: string;
+      }
+    | undefined;
+
+  if (!roleRow) {
+    return fail(res, 400, 'Invalid role');
+  }
+
+  const result = db
+    .prepare(
+      'UPDATE users SET role_id=? WHERE user_id=?',
+    )
+    .run(roleRow.role_id, id);
+
+  if (!result.changes) {
+    return fail(res, 404, 'User not found');
+  }
+
+  audit(
+    req.user!.user_id,
+    'UPDATE_ROLE',
+    'users',
+    id,
+  );
+
+  return ok(res, {
+    message: 'User role updated successfully',
+  });
+});
+
+router.put(
+  '/users/:id/deactivate',
+  (req, res) => {
+    const id = Number(req.params.id);
+
+    if (id === req.user!.user_id) {
+      return fail(
+        res,
+        400,
+        'Administrators cannot deactivate their own account',
+      );
+    }
+
+    const result = db
+      .prepare(
+        'UPDATE users SET is_active=0 WHERE user_id=?',
+      )
+      .run(id);
+
+    if (!result.changes) {
+      return fail(res, 404, 'User not found');
+    }
+
+    audit(
+      req.user!.user_id,
+      'DEACTIVATE',
+      'users',
+      id,
+    );
+
+    return ok(res, {
+      message: 'User account deactivated successfully',
+    });
+  },
+);
+
 export default router;

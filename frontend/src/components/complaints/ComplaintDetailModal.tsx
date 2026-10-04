@@ -4,7 +4,7 @@ import { complaintService } from '../../services/complaint.service';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../common/Toast';
 import { Modal } from '../common/Modal';
-import { StatusBadge, PriorityBadge, SlaBadge } from '../common/Badge';
+import { StatusBadge, PriorityBadge } from '../common/Badge';
 import {
   Calendar,
   Building,
@@ -12,7 +12,6 @@ import {
   User as UserIcon,
   Send,
   Check,
-  AlertTriangle,
   FileCheck,
 } from 'lucide-react';
 
@@ -100,11 +99,20 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
 
   const handleStatusChange = async () => {
     if (selectedStatus === complaint.status) return;
+
     setIsUpdatingStatus(true);
+
     try {
-      const updated = await complaintService.updateStatus(complaint.id, selectedStatus);
+      const updated = await complaintService.updateStatus(
+        complaint.id,
+        selectedStatus
+      );
+
       success(`Status transitioned to ${selectedStatus}`);
-      if (onStatusUpdated) onStatusUpdated(updated);
+
+      if (onStatusUpdated) {
+        onStatusUpdated(updated);
+      }
     } catch (err: any) {
       error(err.message || 'Failed to update status');
       setSelectedStatus(complaint.status);
@@ -115,11 +123,17 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
 
   const handlePostComment = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!newComment.trim()) return;
 
     setIsSubmittingComment(true);
+
     try {
-      const comment = await complaintService.addComment(complaint.id, newComment.trim());
+      const comment = await complaintService.addComment(
+        complaint.id,
+        newComment.trim()
+      );
+
       setComments((prev) => [...prev, comment]);
       setNewComment('');
       success('Response posted');
@@ -130,19 +144,18 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
     }
   };
 
-  const formattedDate = new Date(complaint.created_at).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const formattedDate = new Date(complaint.created_at).toLocaleDateString(
+    'en-GB',
+    {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }
+  );
 
-  const complainantDisplay = complaint.anonymous
-    ? role === 'admin'
-      ? `${complaint.user?.name || 'Student'} (Anonymous to staff)`
-      : 'Anonymous Student'
-    : complaint.user?.name || 'Student User';
+  const complainantDisplay = complaint.user?.username || 'Student User';
 
   return (
     <Modal
@@ -152,8 +165,14 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
       subtitle={`Submitted on ${formattedDate}`}
       maxWidth="800px"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {/* Calm Stepper */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '20px',
+        }}
+      >
+        {/* Status Stepper */}
         <div
           style={{
             padding: '16px 20px',
@@ -171,8 +190,12 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
             }}
           >
             {STEPS.map((step, idx) => {
-              const isCompleted = idx < currentStepIndex || (idx === currentStepIndex && complaint.status === 'closed');
-              const isCurrent = idx === currentStepIndex && complaint.status !== 'closed';
+              const isCompleted =
+                idx < currentStepIndex ||
+                (idx === currentStepIndex && complaint.status === 'closed');
+
+              const isCurrent =
+                idx === currentStepIndex && complaint.status !== 'closed';
 
               return (
                 <React.Fragment key={step.status}>
@@ -190,15 +213,18 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
                         width: '28px',
                         height: '28px',
                         borderRadius: '50%',
-                        backgroundColor: isCompleted
-                          ? '#18181b'
-                          : isCurrent
-                          ? '#18181b'
-                          : '#ffffff',
-                        color: isCompleted || isCurrent ? '#ffffff' : '#a1a1aa',
-                        border: isCompleted || isCurrent
-                          ? '2px solid #18181b'
-                          : '2px solid #d4d4d8',
+                        backgroundColor:
+                          isCompleted || isCurrent
+                            ? '#18181b'
+                            : '#ffffff',
+                        color:
+                          isCompleted || isCurrent
+                            ? '#ffffff'
+                            : '#a1a1aa',
+                        border:
+                          isCompleted || isCurrent
+                            ? '2px solid #18181b'
+                            : '2px solid #d4d4d8',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -208,9 +234,17 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
                       {isCompleted ? (
                         <Check size={14} strokeWidth={2.5} />
                       ) : (
-                        <span style={{ fontSize: '0.725rem', fontWeight: 600 }}>{idx + 1}</span>
+                        <span
+                          style={{
+                            fontSize: '0.725rem',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {idx + 1}
+                        </span>
                       )}
                     </div>
+
                     <span
                       style={{
                         fontSize: '0.725rem',
@@ -229,7 +263,8 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
                       style={{
                         flex: 1,
                         height: '1.5px',
-                        backgroundColor: idx < currentStepIndex ? '#18181b' : '#e4e4e7',
+                        backgroundColor:
+                          idx < currentStepIndex ? '#18181b' : '#e4e4e7',
                         margin: '0 6px',
                         marginTop: '-18px',
                       }}
@@ -255,27 +290,51 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
             border: '1px solid #e4e4e7',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.8rem', color: '#71717a' }}>Status:</span>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <span
+              style={{
+                fontSize: '0.8rem',
+                color: '#71717a',
+              }}
+            >
+              Status:
+            </span>
+
             <StatusBadge status={complaint.status} />
             <PriorityBadge priority={complaint.priority} />
-            <SlaBadge escalated={complaint.sla_escalated} />
           </div>
 
           {/* Status Transition Selector for Staff/Admin */}
           {isStaffOrAdmin && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                disabled={complaint.status === 'closed' || isUpdatingStatus}
+                disabled={
+                  complaint.status === 'closed' || isUpdatingStatus
+                }
                 className="form-select"
                 style={{
                   padding: '5px 10px',
                   fontSize: '0.8rem',
                   fontWeight: 600,
                   width: 'auto',
-                  cursor: complaint.status === 'closed' ? 'not-allowed' : 'pointer',
+                  cursor:
+                    complaint.status === 'closed'
+                      ? 'not-allowed'
+                      : 'pointer',
                 }}
               >
                 {getAvailableTransitions(complaint.status).map((s) => (
@@ -296,7 +355,10 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
                   onClick={handleStatusChange}
                   disabled={isUpdatingStatus}
                   className="btn btn-primary"
-                  style={{ padding: '5px 12px', fontSize: '0.78rem' }}
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: '0.78rem',
+                  }}
                 >
                   Update
                 </button>
@@ -309,7 +371,8 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gridTemplateColumns:
+              'repeat(auto-fit, minmax(180px, 1fr))',
             gap: '12px',
             fontSize: '0.8rem',
             backgroundColor: '#fafafa',
@@ -318,13 +381,29 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
             border: '1px solid #e4e4e7',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#71717a' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: '#71717a',
+            }}
+          >
             <Tag size={14} />
             <span>Category:</span>
-            <strong style={{ color: '#18181b' }}>{complaint.category}</strong>
+            <strong style={{ color: '#18181b' }}>
+              {complaint.category}
+            </strong>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#71717a' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: '#71717a',
+            }}
+          >
             <Building size={14} />
             <span>Department:</span>
             <strong style={{ color: '#18181b' }}>
@@ -332,24 +411,50 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
             </strong>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#71717a' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: '#71717a',
+            }}
+          >
             <UserIcon size={14} />
             <span>Submitted by:</span>
-            <strong style={{ color: '#18181b' }}>{complainantDisplay}</strong>
+            <strong style={{ color: '#18181b' }}>
+              {complainantDisplay}
+            </strong>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#71717a' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: '#71717a',
+            }}
+          >
             <Calendar size={14} />
             <span>Date:</span>
-            <strong style={{ color: '#18181b' }}>{formattedDate}</strong>
+            <strong style={{ color: '#18181b' }}>
+              {formattedDate}
+            </strong>
           </div>
         </div>
 
         {/* Description */}
         <div>
-          <h4 style={{ fontSize: '0.825rem', fontWeight: 600, color: '#18181b', marginBottom: '6px' }}>
+          <h4
+            style={{
+              fontSize: '0.825rem',
+              fontWeight: 600,
+              color: '#18181b',
+              marginBottom: '6px',
+            }}
+          >
             Description
           </h4>
+
           <div
             style={{
               padding: '14px 16px',
@@ -366,31 +471,13 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
           </div>
         </div>
 
-        {/* SLA Notice */}
-        {complaint.sla_escalated && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '10px 14px',
-              backgroundColor: '#fff7ed',
-              borderRadius: '8px',
-              border: '1px solid #fed7aa',
-              color: '#9a3412',
-              fontSize: '0.8rem',
-            }}
-          >
-            <AlertTriangle size={16} />
-            <span>
-              <strong>Automated SLA Escalation active:</strong> This complaint received high priority
-              routing for student safety.
-            </span>
-          </div>
-        )}
-
         {/* Comments / Discussion Thread */}
-        <div style={{ borderTop: '1px solid #f4f4f5', paddingTop: '16px' }}>
+        <div
+          style={{
+            borderTop: '1px solid #f4f4f5',
+            paddingTop: '16px',
+          }}
+        >
           <h4
             style={{
               fontSize: '0.85rem',
@@ -432,8 +519,12 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
               </div>
             ) : (
               comments.map((c) => {
-                const isStaffComment = c.role === 'staff' || c.role === 'admin';
-                const commentDate = new Date(c.created_at).toLocaleString('en-GB', {
+                const isStaffComment =
+                  c.role === 'staff' || c.role === 'admin';
+
+                const commentDate = new Date(
+                  c.created_at
+                ).toLocaleString('en-GB', {
                   day: 'numeric',
                   month: 'short',
                   hour: '2-digit',
@@ -446,8 +537,12 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
                     style={{
                       padding: '10px 14px',
                       borderRadius: '8px',
-                      backgroundColor: isStaffComment ? '#fafafa' : '#ffffff',
-                      border: `1px solid ${isStaffComment ? '#e4e4e7' : '#f4f4f5'}`,
+                      backgroundColor: isStaffComment
+                        ? '#fafafa'
+                        : '#ffffff',
+                      border: `1px solid ${
+                        isStaffComment ? '#e4e4e7' : '#f4f4f5'
+                      }`,
                       fontSize: '0.825rem',
                     }}
                   >
@@ -459,10 +554,25 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
                         marginBottom: '4px',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontWeight: 600, color: '#18181b' }}>
-                          {c.user?.name || (isStaffComment ? 'Support Staff' : 'Student')}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            color: '#18181b',
+                          }}
+                        >
+                          {c.user?.username ||
+                            (isStaffComment
+                              ? 'Support Staff'
+                              : 'Student')}
                         </span>
+
                         <span
                           style={{
                             fontSize: '0.65rem',
@@ -477,9 +587,25 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
                           {c.role}
                         </span>
                       </div>
-                      <span style={{ fontSize: '0.7rem', color: '#a1a1aa' }}>{commentDate}</span>
+
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          color: '#a1a1aa',
+                        }}
+                      >
+                        {commentDate}
+                      </span>
                     </div>
-                    <div style={{ color: '#3f3f46', lineHeight: 1.5 }}>{c.content}</div>
+
+                    <div
+                      style={{
+                        color: '#3f3f46',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {c.content}
+                    </div>
                   </div>
                 );
               })
@@ -487,20 +613,34 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
           </div>
 
           {/* Add Comment Input */}
-          <form onSubmit={handlePostComment} style={{ display: 'flex', gap: '8px' }}>
+          <form
+            onSubmit={handlePostComment}
+            style={{
+              display: 'flex',
+              gap: '8px',
+            }}
+          >
             <input
               type="text"
               placeholder="Write a response..."
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               className="form-input"
-              style={{ flex: 1, padding: '8px 12px' }}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+              }}
             />
+
             <button
               type="submit"
-              disabled={isSubmittingComment || !newComment.trim()}
+              disabled={
+                isSubmittingComment || !newComment.trim()
+              }
               className="btn btn-primary"
-              style={{ padding: '8px 16px' }}
+              style={{
+                padding: '8px 16px',
+              }}
             >
               <Send size={14} />
               <span>Send</span>

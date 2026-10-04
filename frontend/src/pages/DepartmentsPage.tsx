@@ -138,7 +138,7 @@ export const DepartmentsPage: React.FC = () => {
                     letterSpacing: '0.05em',
                   }}
                 >
-                  {dept.code}
+                  {dept.name}
                 </span>
               </div>
 
