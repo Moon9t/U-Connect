@@ -16,7 +16,7 @@ export const Logo: React.FC<LogoProps> = ({ size = 'md', showTagline = false }) 
         style={{
           width: size === 'lg' ? '42px' : size === 'md' ? '34px' : '28px',
           height: size === 'lg' ? '42px' : size === 'md' ? '34px' : '28px',
-          backgroundColor: '#18181b',
+          backgroundColor: '#2563eb',
           color: '#ffffff',
           borderRadius: '9px',
           display: 'flex',
@@ -33,7 +33,7 @@ export const Logo: React.FC<LogoProps> = ({ size = 'md', showTagline = false }) 
           style={{
             fontSize: textSize,
             fontWeight: 800,
-            color: '#09090b',
+            color: '#2563eb',
             letterSpacing: '-0.035em',
             display: 'flex',
             alignItems: 'baseline',
@@ -45,7 +45,7 @@ export const Logo: React.FC<LogoProps> = ({ size = 'md', showTagline = false }) 
           <div
             style={{
               fontSize: '0.75rem',
-              color: '#71717a',
+              color: '#2563eb',
               fontWeight: 400,
               marginTop: '1px',
               letterSpacing: '-0.01em',

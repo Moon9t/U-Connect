@@ -119,7 +119,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       style={{
         height: '72px',
         backgroundColor: '#ffffff',
-        borderBottom: '1px solid var(--neutral-200)',
+        borderBottom: '1px solid var(--border-subtle)',
+        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -202,7 +203,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }}
             aria-label="Notifications"
           >
-            <Bell size={20} color="#475569" />
+            <Bell size={20} color= 'var(--neutral-600)' />
 
             {unreadCount > 0 && (
               <span
@@ -257,7 +258,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <div
                   style={{
                     fontWeight: 700,
-                    color: '#1e293b',
+                    color: 'var(--neutral-800)',
                   }}
                 >
                   Notifications
@@ -289,7 +290,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <div
                     style={{
                       padding: '18px 16px',
-                      color: '#64748b',
+                      color: 'var(--neutral-500)',
                       fontSize: '0.8rem',
                     }}
                   >
