@@ -10,13 +10,22 @@ import {
   User as UserIcon,
   Search,
   CheckCheck,
+  Menu,
 } from 'lucide-react';
 
 interface NavbarProps {
   onNavigateToProfile?: () => void;
+  activeTab?: string;
+  onToggleMobileSidebar?: () => void;
+  onOpenSearch?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
+export const Navbar: React.FC<NavbarProps> = ({
+  onNavigateToProfile,
+  activeTab = 'dashboard',
+  onToggleMobileSidebar,
+  onOpenSearch,
+}) => {
   const { user, role, logout, switchDemoUser } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -142,18 +151,82 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigateToProfile }) => {
         zIndex: 40,
       }}
     >
-      {/* Brand & Search */}
+      {/* Brand, Hamburger & Breadcrumb */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '28px',
+          gap: '16px',
         }}
       >
+        {/* Hamburger Menu Toggle on Mobile */}
+        <button
+          type="button"
+          onClick={onToggleMobileSidebar}
+          aria-label="Toggle navigation menu"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '7px',
+            borderRadius: '8px',
+            color: '#1e3a8a',
+            backgroundColor: '#eff6ff',
+            border: '1px solid #dbeafe',
+            cursor: 'pointer',
+          }}
+        >
+          <Menu size={18} />
+        </button>
+
         <Logo size="sm" />
+
+        {/* Visibility of System Status: Active Page Breadcrumb */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '0.825rem',
+            paddingLeft: '12px',
+            borderLeft: '1px solid #e2e8f0',
+          }}
+        >
+          <span style={{ color: '#94a3b8', fontWeight: 500 }}>U-Connect</span>
+          <span style={{ color: '#cbd5e1' }}>/</span>
+          <span style={{ color: '#1e3a8a', fontWeight: 700 }}>
+            {activeTab === 'dashboard'
+              ? 'Dashboard'
+              : activeTab === 'submit-complaint'
+              ? 'Submit Grievance'
+              : activeTab === 'my-complaints'
+              ? 'My Grievances'
+              : activeTab === 'complaints-mgmt'
+              ? 'Grievance Management'
+              : activeTab === 'users'
+              ? 'User Roles'
+              : activeTab === 'departments'
+              ? 'Departments'
+              : activeTab === 'reports'
+              ? 'Analytics & Reports'
+              : activeTab === 'feedback'
+              ? 'Feedback'
+              : activeTab === 'profile'
+              ? 'Profile'
+              : 'Portal'}
+          </span>
+        </div>
 
         {/* Search */}
         <div
+          onClick={onOpenSearch}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              onOpenSearch?.();
+            }
+          }}
           style={{
             display: 'flex',
             alignItems: 'center',

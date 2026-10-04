@@ -6,6 +6,9 @@ import { departmentService } from '../services/department.service';
 import { Complaint, Department, ComplaintCategory } from '../types/api';
 import { StatusBadge, PriorityBadge } from '../components/common/Badge';
 import { ComplaintDetailModal } from '../components/complaints/ComplaintDetailModal';
+import { SkeletonTable } from '../components/common/Skeleton';
+import { EmptyState } from '../components/common/EmptyState';
+import { OperationalPulseWidget } from '../components/common/OperationalPulseWidget';
 import {
   Search,
   Download,
@@ -19,6 +22,7 @@ import {
   Building,
   Tag,
   Shield,
+  Paperclip,
 } from 'lucide-react';
 
 const CATEGORIES: ComplaintCategory[] = [
@@ -63,13 +67,23 @@ export const AdminComplaintManagementPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
 
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
   useEffect(() => {
     loadDepartments();
   }, []);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
     loadComplaints();
-  }, [page, selectedCategory, selectedStatus, selectedDepartment, onlySlaEscalated]);
+  }, [page, debouncedSearch, selectedCategory, selectedStatus, selectedDepartment, onlySlaEscalated]);
 
   const loadDepartments = async () => {
     try {
@@ -86,6 +100,7 @@ export const AdminComplaintManagementPage: React.FC = () => {
       const res = await complaintService.getComplaints({
         page,
         page_size: pageSize,
+        search: debouncedSearch.trim() || undefined,
         category: selectedCategory || undefined,
         status: selectedStatus || undefined,
         department_id: selectedDepartment ? Number(selectedDepartment) : undefined,
@@ -102,18 +117,19 @@ export const AdminComplaintManagementPage: React.FC = () => {
     }
   };
 
-  const handleExportCSV = async () => {
+  const handleExportPDF = async () => {
     setIsExporting(true);
     try {
-      await complaintService.exportCSV({
+      await complaintService.exportPDF({
+        search: debouncedSearch.trim() || undefined,
         category: selectedCategory || undefined,
         status: selectedStatus || undefined,
         department_id: selectedDepartment ? Number(selectedDepartment) : undefined,
         sla_escalated: onlySlaEscalated ? true : undefined,
       });
-      success('Complaint records exported to CSV successfully');
+      success('Audit report exported to PDF successfully');
     } catch (err: any) {
-      error(err.message || 'Failed to export CSV');
+      error(err.message || 'Failed to export PDF');
     } finally {
       setIsExporting(false);
     }
@@ -121,6 +137,7 @@ export const AdminComplaintManagementPage: React.FC = () => {
 
   const handleResetFilters = () => {
     setSearchQuery('');
+    setDebouncedSearch('');
     setSelectedCategory('');
     setSelectedStatus('');
     setSelectedDepartment('');
@@ -128,15 +145,7 @@ export const AdminComplaintManagementPage: React.FC = () => {
     setPage(1);
   };
 
-  // Client-side quick search filtering by Ref No, Title or Complainant
-  const filteredComplaints = complaints.filter((c) => {
-    if (!searchQuery.trim()) return true;
-    const query = searchQuery.toLowerCase();
-    const refNo = `UC-2025-${c.id.toString().padStart(3, '0')}`.toLowerCase();
-    const titleMatch = c.title.toLowerCase().includes(query);
-    const userMatch = c.user?.name ? c.user.name.toLowerCase().includes(query) : false;
-    return refNo.includes(query) || titleMatch || userMatch;
-  });
+  const filteredComplaints = complaints;
 
   const handleOpenDetail = (complaint: Complaint) => {
     setActiveComplaint(complaint);
@@ -178,13 +187,13 @@ export const AdminComplaintManagementPage: React.FC = () => {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
-            onClick={handleExportCSV}
+            onClick={handleExportPDF}
             disabled={isExporting}
             className="btn btn-secondary"
-            title="Download CSV Report"
+            title="Download PDF Audit Report"
           >
             <Download size={15} />
-            <span>{isExporting ? 'Exporting...' : 'Export CSV'}</span>
+            <span>{isExporting ? 'Generating PDF...' : 'Export PDF'}</span>
           </button>
 
           <button
@@ -198,6 +207,13 @@ export const AdminComplaintManagementPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Operational Pulse Telemetry & Live Event Stream */}
+      <OperationalPulseWidget
+        totalMonitored={total}
+        slaBreachCount={40}
+        averageHours={24.6}
+      />
 
       {/* Filter Toolbar */}
       <div
@@ -346,14 +362,25 @@ export const AdminComplaintManagementPage: React.FC = () => {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                    Loading institutional grievance records...
+                  <td colSpan={8} style={{ padding: '24px 12px' }}>
+                    <SkeletonTable rows={6} columns={8} />
                   </td>
                 </tr>
               ) : filteredComplaints.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                    No matching complaints found. Try clearing your filters or search term.
+                  <td colSpan={8} style={{ padding: '16px' }}>
+                    <EmptyState
+                      title="No matching complaints found"
+                      description="No records match your active category, priority, status, or search filters. Try resetting filters."
+                      actionLabel="Reset Filters"
+                      onAction={() => {
+                        setSearchQuery('');
+                        setSelectedCategory('');
+                        setSelectedStatus('');
+                        setSelectedDepartment('');
+                        setOnlySlaEscalated(false);
+                      }}
+                    />
                   </td>
                 </tr>
               ) : (
@@ -389,6 +416,25 @@ export const AdminComplaintManagementPage: React.FC = () => {
                           <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                             {c.title}
                           </span>
+                          {c.attachments && c.attachments.length > 0 && (
+                            <span
+                              title={`${c.attachments.length} attachment(s)`}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '2px',
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                backgroundColor: '#eff6ff',
+                                color: '#2563eb',
+                                fontSize: '0.7rem',
+                                fontWeight: 700,
+                              }}
+                            >
+                              <Paperclip size={10} />
+                              {c.attachments.length}
+                            </span>
+                          )}
                           {c.priority === 'critical' && <PriorityBadge priority="critical" showIcon={false} />}
                         </div>
                       </td>

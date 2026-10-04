@@ -29,14 +29,26 @@ export type NavTab =
 interface SidebarProps {
   activeTab: NavTab;
   setActiveTab: (tab: NavTab) => void;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  activeTab,
+  setActiveTab,
+  mobileOpen = false,
+  onCloseMobile,
+}) => {
   const { role, logout } = useAuth();
 
   const isStudent = role === 'student';
   const isAdminOrStaff = role === 'admin' || role === 'staff';
   const isAdmin = role === 'admin';
+
+  const handleSelectTab = (tab: NavTab) => {
+    setActiveTab(tab);
+    if (onCloseMobile) onCloseMobile();
+  };
 
   const getItemStyle = (tab: NavTab) => {
     const isActive = activeTab === tab;
@@ -65,23 +77,36 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
   };
 
   return (
-    <aside
-      style={{
-        width: '230px',
-
-        /* Dark university blue */
-        backgroundColor: '#1e3a8a',
-
-        color: '#bfdbfe',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        flexShrink: 0,
-
-        /* Blue border */
-        borderRight: '1px solid rgba(255, 255, 255, 0.12)',
-      }}
-    >
+    <>
+      {mobileOpen && (
+        <div
+          className="mobile-drawer-overlay open"
+          onClick={onCloseMobile}
+          style={{ display: 'block' }}
+        />
+      )}
+      <aside
+        style={{
+          width: '230px',
+          backgroundColor: '#1e3a8a',
+          color: '#bfdbfe',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          flexShrink: 0,
+          borderRight: '1px solid rgba(255, 255, 255, 0.12)',
+          ...(mobileOpen
+            ? {
+                position: 'fixed',
+                top: 0,
+                bottom: 0,
+                left: 0,
+                zIndex: 100,
+                boxShadow: '4px 0 24px rgba(0, 0, 0, 0.25)',
+              }
+            : {}),
+        }}
+      >
       <div style={{ padding: '24px 12px 16px', overflowY: 'auto' }}>
 
         {/* Main Section */}
@@ -416,5 +441,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
         </button>
       </div>
     </aside>
-  );
+  </>
+);
 };

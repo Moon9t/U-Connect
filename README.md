@@ -80,14 +80,24 @@ git clone https://github.com/Moon9t/U-Connect.git
 cd U-Connect
 ```
 
-### 3. Start the Go Backend
+### 3. Start the Backend (Option A: Node.js / TypeScript or Option B: Go)
+
+#### Option A: Node.js Backend (TypeScript & Express)
+```bash
+cd backend-node
+npm install
+npm run seed       # Seeds 520 complaints & 20 accounts
+npm run dev        # Starts server on http://localhost:8080
+# Run automated tests:
+npm test
+```
+
+#### Option B: Go Backend
 ```bash
 cd backend
 cp .env.example .env
 go mod tidy
-
-# Run server with 520 complaints & 20 users pre-seeded
-go run cmd/api/main.go --seed
+go run cmd/api/main.go --seed  # Starts server on http://localhost:8080
 ```
 *Backend runs on `http://localhost:8080`. Health check: `http://localhost:8080/health`*
 
@@ -97,7 +107,7 @@ cd ../frontend
 npm install
 npm run dev
 ```
-*Frontend runs on `http://localhost:3000` with automated proxy to the backend API.*
+*Frontend runs on `http://localhost:3000` with automated proxy to the backend API (`http://127.0.0.1:8080`).*
 
 ---
 

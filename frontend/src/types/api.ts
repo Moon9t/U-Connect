@@ -16,8 +16,17 @@ export interface User {
   role: UserRole;
   department_id?: number | null;
   department?: Department | null;
+  is_active?: boolean;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface CreateUserDTO {
+  name: string;
+  email: string;
+  password?: string;
+  role: UserRole;
+  department_id?: number | null;
 }
 
 export type ComplaintCategory =
@@ -55,6 +64,16 @@ export interface Notification {
   updated_at: string;
 }
 
+export interface Attachment {
+  id: number;
+  complaint_id: number;
+  file_name: string;
+  file_size: number;
+  file_type: string;
+  file_url: string;
+  created_at: string;
+}
+
 export interface Complaint {
   id: number;
   title: string;
@@ -72,6 +91,7 @@ export interface Complaint {
   created_at: string;
   updated_at: string;
   comments?: Comment[];
+  attachments?: Attachment[];
 }
 
 export interface DashboardStats {
@@ -112,6 +132,7 @@ export interface CreateComplaintPayload {
   category: string;
   department_id: number;
   anonymous?: boolean;
+  files?: File[];
 }
 
 export interface ComplaintFilters {

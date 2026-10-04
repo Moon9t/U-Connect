@@ -3,7 +3,9 @@ import { complaintService } from '../services/complaint.service';
 import { Complaint } from '../types/api';
 import { StatusBadge, PriorityBadge } from '../components/common/Badge';
 import { ComplaintDetailModal } from '../components/complaints/ComplaintDetailModal';
-import { Plus, Search, Filter } from 'lucide-react';
+import { SkeletonTable } from '../components/common/Skeleton';
+import { EmptyState } from '../components/common/EmptyState';
+import { Plus, Search, Filter, Paperclip } from 'lucide-react';
 
 interface MyComplaintsPageProps {
   onNavigateToSubmit: () => void;
@@ -127,14 +129,19 @@ export const MyComplaintsPage: React.FC<MyComplaintsPageProps> = ({ onNavigateTo
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '36px', color: '#94a3b8' }}>
-                    Loading complaints...
+                  <td colSpan={7} style={{ padding: '24px 12px' }}>
+                    <SkeletonTable rows={5} columns={7} />
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '36px', color: '#94a3b8' }}>
-                    No complaints found.
+                  <td colSpan={7} style={{ padding: '16px' }}>
+                    <EmptyState
+                      title="No complaints match your filters"
+                      description={search || statusFilter ? 'Try clearing your search query or status filter to see other records.' : "You haven't logged any complaints yet."}
+                      actionLabel={search || statusFilter ? undefined : "Submit a Complaint"}
+                      onAction={onNavigateToSubmit}
+                    />
                   </td>
                 </tr>
               ) : (
@@ -160,7 +167,30 @@ export const MyComplaintsPage: React.FC<MyComplaintsPageProps> = ({ onNavigateTo
                           {refNo}
                         </button>
                       </td>
-                      <td style={{ fontWeight: 500, color: '#1e293b' }}>{c.title}</td>
+                      <td style={{ fontWeight: 500, color: '#1e293b' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span>{c.title}</span>
+                          {c.attachments && c.attachments.length > 0 && (
+                            <span
+                              title={`${c.attachments.length} attached file(s)`}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                backgroundColor: '#eff6ff',
+                                color: '#2563eb',
+                                fontSize: '0.72rem',
+                                fontWeight: 600,
+                              }}
+                            >
+                              <Paperclip size={11} />
+                              {c.attachments.length}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td>{c.category}</td>
                       <td>
                         <PriorityBadge priority={c.priority} />
