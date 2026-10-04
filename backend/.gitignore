@@ -1,33 +1,11 @@
-# Binaries
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-bin/
-
-# Database files
-*.db
-*.db-journal
-*.db-wal
-*.db-shm
-uconnect.db
-
-# Test coverage & artifacts
-*.out
-coverage.html
-
-# Environment variables
+node_modules/
+dist/
+uploads/
 .env
+*.log
 
-# Go workspace
-go.work
-go.work.sum
-
-# IDE & OS
-.idea/
-.vscode/
-*.swp
-*~
-.DS_Store
-Thumbs.db
+# SQLite runtime database files
+*.db
+*.db-shm
+*.db-wal
+*.db-journal

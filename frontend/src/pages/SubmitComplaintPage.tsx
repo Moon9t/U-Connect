@@ -41,7 +41,7 @@ export const SubmitComplaintPage: React.FC<SubmitComplaintPageProps> = ({
   const [anonymous, setAnonymous] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [attachedFiles, setAttachedFiles] = useState<{ name: string; size: string }[]>([]);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -87,12 +87,7 @@ export const SubmitComplaintPage: React.FC<SubmitComplaintPageProps> = ({
     const files = e.target.files;
     if (!files) return;
 
-    const newFiles = Array.from(files).map((f) => ({
-      name: f.name,
-      size: `${(f.size / (1024 * 1024)).toFixed(1)} MB`,
-    }));
-
-    setAttachedFiles((prev) => [...prev, ...newFiles]);
+    setAttachedFiles((prev) => [...prev, ...Array.from(files)]);
   };
 
   const removeFile = (index: number) => {
@@ -121,17 +116,18 @@ export const SubmitComplaintPage: React.FC<SubmitComplaintPageProps> = ({
 
     setIsSubmitting(true);
     try {
-      const fullDescription = location.trim()
-        ? `${description.trim()}\n\n[Location / Room: ${location.trim()}]`
-        : description.trim();
-
-      await complaintService.createComplaint({
+      const complaint = await complaintService.createComplaint({
         title: title.trim(),
-        description: fullDescription,
+        description: description.trim(),
         category,
+        location: location.trim(),
         department_id: Number(departmentId),
         anonymous,
       });
+
+      for (const file of attachedFiles) {
+        await complaintService.uploadAttachment(complaint.id, file);
+      }
 
       success('Grievance registered and routed to department coordinators.');
       onSuccess();
@@ -398,7 +394,7 @@ export const SubmitComplaintPage: React.FC<SubmitComplaintPageProps> = ({
                   >
                     <FileText size={14} />
                     <span>{file.name}</span>
-                    <span style={{ color: '#71717a', fontSize: '0.725rem' }}>({file.size})</span>
+                    <span style={{ color: '#71717a', fontSize: '0.725rem' }}>({(file.size / (1024 * 1024)).toFixed(1)} MB)</span>
                     <button
                       type="button"
                       onClick={() => removeFile(idx)}

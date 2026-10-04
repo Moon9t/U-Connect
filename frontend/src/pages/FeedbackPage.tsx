@@ -1,113 +1,123 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { complaintService } from '../services/complaint.service';
+import { Complaint } from '../types/api';
 import { useToast } from '../components/common/Toast';
-import { MessageSquare, Send, CheckCircle2 } from 'lucide-react';
+import { Star, MessageSquare } from 'lucide-react';
 
 export const FeedbackPage: React.FC = () => {
   const { success, error } = useToast();
-  const [topic, setTopic] = useState('General Campus Services');
-  const [feedback, setFeedback] = useState('');
-  const [rating, setRating] = useState('5');
-  const [submitted, setSubmitted] = useState(false);
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [selectedComplaintId, setSelectedComplaintId] = useState<number | ''>('');
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const loadResolvedComplaints = async () => {
+      setIsLoading(true);
+      try {
+        const res = await complaintService.getComplaints({ status: 'resolved', page: 1, page_size: 100 });
+        const eligible: Complaint[] = [];
+        for (const complaint of res.data || []) {
+          const existing = await complaintService.getFeedback(complaint.id);
+          if (existing.length === 0) eligible.push(complaint);
+        }
+        setComplaints(eligible);
+        if (eligible.length > 0) setSelectedComplaintId(eligible[0].id);
+      } catch (err: any) {
+        error(err.message || 'Failed to load resolved complaints');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void loadResolvedComplaints();
+  }, [error]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!feedback.trim()) {
-      error('Please write your feedback before sending');
+    if (!selectedComplaintId) {
+      error('Please select a resolved complaint');
       return;
     }
-    setSubmitted(true);
-    success('Thank you! Your feedback has been sent to university administration.');
+
+    setIsSubmitting(true);
+    try {
+      await complaintService.submitFeedback(Number(selectedComplaintId), rating, comment.trim() || undefined);
+      setComplaints((prev) => prev.filter((c) => c.id !== Number(selectedComplaintId)));
+      setSelectedComplaintId('');
+      setComment('');
+      setRating(5);
+      success('Thank you. Your complaint feedback has been submitted.');
+    } catch (err: any) {
+      error(err.message || 'Failed to submit feedback');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="page-container animate-fade-in" style={{ maxWidth: '720px' }}>
+    <div className="page-container animate-fade-in" style={{ maxWidth: '760px' }}>
       <div style={{ marginBottom: '24px' }}>
-        <h1 className="page-title">University Feedback & Suggestions</h1>
-        <p className="page-subtitle">Help improve campus amenities, digital platforms, and student life.</p>
+        <h1 className="page-title">Complaint Feedback</h1>
+        <p className="page-subtitle">Rate a resolved complaint and share comments with the university.</p>
       </div>
 
       <div className="card" style={{ padding: '32px' }}>
-        {submitted ? (
-          <div style={{ textAlign: 'center', padding: '32px 0' }}>
-            <div
-              style={{
-                width: '60px',
-                height: '60px',
-                borderRadius: '50%',
-                backgroundColor: '#dcfce7',
-                color: '#16a34a',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px',
-              }}
-            >
-              <CheckCircle2 size={32} />
-            </div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>
-              Feedback Received
-            </h2>
-            <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '6px' }}>
-              Your suggestions have been recorded and shared with student governance.
-            </p>
-            <button
-              onClick={() => {
-                setSubmitted(false);
-                setFeedback('');
-              }}
-              className="btn btn-secondary"
-              style={{ marginTop: '20px' }}
-            >
-              Submit Another Response
-            </button>
+        {isLoading ? (
+          <p style={{ color: '#71717a' }}>Loading resolved complaints...</p>
+        ) : complaints.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '30px 10px', color: '#71717a' }}>
+            <MessageSquare size={30} style={{ marginBottom: '10px' }} />
+            <p style={{ fontWeight: 600, color: '#27272a' }}>No resolved complaints awaiting feedback.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label className="form-label">Feedback Focus Area</label>
+              <label className="form-label">Resolved Complaint</label>
               <select
                 className="form-select"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
+                value={selectedComplaintId}
+                onChange={(e) => setSelectedComplaintId(e.target.value ? Number(e.target.value) : '')}
               >
-                <option value="General Campus Services">General Campus Services</option>
-                <option value="U-Connect Portal UX">U-Connect Portal Experience</option>
-                <option value="Library & Study Areas">Library & Study Facilities</option>
-                <option value="Cafeteria & Dining">Dining & Food Services</option>
-                <option value="Campus Transportation">Transportation & Parking</option>
+                {complaints.map((complaint) => (
+                  <option key={complaint.id} value={complaint.id}>
+                    {complaint.reference_number} — {complaint.title}
+                  </option>
+                ))}
               </select>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Satisfaction Rating (1-5)</label>
-              <select
-                className="form-select"
-                value={rating}
-                onChange={(e) => setRating(e.target.value)}
-              >
-                <option value="5">5 - Excellent</option>
-                <option value="4">4 - Good</option>
-                <option value="3">3 - Satisfactory</option>
-                <option value="2">2 - Needs Improvement</option>
-                <option value="1">1 - Poor</option>
-              </select>
+            <div className="form-group" style={{ marginTop: '20px' }}>
+              <label className="form-label">Rating</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setRating(value)}
+                    aria-label={`${value} out of 5`}
+                    style={{ background: 'transparent', padding: '4px' }}
+                  >
+                    <Star size={26} fill={value <= rating ? 'currentColor' : 'none'} />
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Your Suggestion or Commentary</label>
+            <div className="form-group" style={{ marginTop: '20px' }}>
+              <label className="form-label">Comment (optional)</label>
               <textarea
-                className="form-textarea"
-                rows={4}
-                placeholder="Share your experience or recommendations..."
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
-                required
+                className="form-input"
+                rows={5}
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Tell us about your experience..."
               />
             </div>
 
-            <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-              <Send size={15} />
-              <span>Submit Feedback</span>
+            <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
             </button>
           </form>
         )}
