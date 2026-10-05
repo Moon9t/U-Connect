@@ -162,7 +162,7 @@ Replace `<repository-url>` with the repository URL used by the team.
 ### 3. Start the Backend
 
 ```bash
-cd backend
+cd backend-node
 npm install
 npm run dev
 ```
@@ -214,7 +214,7 @@ The Vite development server proxies API requests to the backend on port `8080`.
 ### Backend
 
 ```bash
-cd backend
+cd backend-node
 npm run build
 npm start
 ```
@@ -398,7 +398,7 @@ git checkout -b feature/complaint-feedback
 Before pushing changes:
 
 ```bash
-cd backend
+cd backend-node
 npm run build
 
 cd ../frontend
