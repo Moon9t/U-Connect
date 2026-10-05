@@ -192,7 +192,7 @@ export const SubmitComplaintPage: React.FC<SubmitComplaintPageProps> = ({
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       processFiles(e.dataTransfer.files);
     }
-  };
+};
 
   const removeFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
@@ -241,18 +241,25 @@ export const SubmitComplaintPage: React.FC<SubmitComplaintPageProps> = ({
 
     setIsSubmitting(true);
     try {
-      const fullDescription = location.trim()
-        ? `${description.trim()}\n\n[Location / Room: ${location.trim()}]`
-        : description.trim();
-
-      await complaintService.createComplaint({
+      const complaint = await complaintService.createComplaint({
         title: title.trim(),
-        description: fullDescription,
+        description: description.trim(),
         category,
+        location: location.trim(),
         department_id: Number(departmentId),
         anonymous,
         files: selectedFiles,
       });
+
+      if (selectedFiles.length > 0 && (!complaint.attachments || complaint.attachments.length === 0)) {
+        for (const file of selectedFiles) {
+          try {
+            await complaintService.uploadAttachment(complaint.id, file);
+          } catch {
+            // ignore if already handled
+          }
+        }
+      }
 
       success('Grievance registered and routed to department coordinators.');
       onSuccess();
@@ -592,6 +599,7 @@ export const SubmitComplaintPage: React.FC<SubmitComplaintPageProps> = ({
                     Ready for upload ({selectedFiles.length})
                   </span>
                   {selectedFiles.length > 1 && (
+
                     <button
                       type="button"
                       onClick={clearAllFiles}

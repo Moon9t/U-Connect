@@ -130,7 +130,7 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
 
   if (!complaint) return null;
 
-  const refNumber = `UC-2025-${complaint.id.toString().padStart(3, '0')}`;
+  const refNumber = complaint.reference_number;
   const isStaffOrAdmin = role === 'admin' || role === 'staff';
 
   const getAvailableTransitions = (current: ComplaintStatus) => {
@@ -522,7 +522,7 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
                           {att.file_name}
                         </p>
                         <span style={{ fontSize: '0.7rem', color: 'var(--neutral-400)' }}>
-                          {formatFileSize(att.file_size)}
+                          {formatFileSize(att.file_size || 0)}
                         </span>
                       </div>
 

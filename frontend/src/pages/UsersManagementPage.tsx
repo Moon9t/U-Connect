@@ -63,6 +63,12 @@ export const UsersManagementPage: React.FC = () => {
       throw err;
     } finally {
       setIsSubmitting(false);
+
+  const handleDeactivate = (userId: number) => {
+    const u = users.find((x) => x.id === userId);
+    if (u) setTargetUserForStatus(u);
+  };
+
     }
   };
 
@@ -382,6 +388,7 @@ export const UsersManagementPage: React.FC = () => {
                 <th>Role & Permissions</th>
                 <th>Account Status</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
+
               </tr>
             </thead>
             <tbody>
@@ -625,6 +632,7 @@ export const UsersManagementPage: React.FC = () => {
                               Root Admin
                             </span>
                           )}
+
                         </div>
                       </td>
                     </tr>

@@ -1,171 +1,475 @@
-# U-Connect | University Grievance Management System
+# UConnect | University Complaint Management System
 
-[![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://golang.org)
-[![React](https://img.shields.io/badge/React-19.0-61DAFB?style=flat&logo=react)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat&logo=typescript)](https://www.typescriptlang.org)
-[![Vite](https://img.shields.io/badge/Vite-8.0+-646CFF?style=flat&logo=vite)](https://vitejs.dev)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-
-**U-Connect** is an institutional complaint and grievance management platform built for modern universities. It provides students with a human-centered, responsive channel to submit grievances, staff with tools to triage and resolve issues, and university leadership with oversight through automated SLA monitoring, escalation triggers, and institutional analytics.
+**UConnect** is a university complaint and grievance management platform. It provides students with a structured channel to submit and track complaints, staff with tools to manage and resolve complaints, and administrators with institutional oversight, reporting, and user-management capabilities.
 
 ---
 
 ## System Architecture
 
+```text
+                         [ Browser Client ]
+                                |
+                         Vite (:3000)
+                                |
+                                v
+                  +---------------------------+
+                  |   Node.js + Express API   |
+                  |        (:8080)             |
+                  +-------------+-------------+
+                                |
+              +-----------------+-----------------+
+              |                 |                 |
+              v                 v                 v
+       [ JWT + RBAC ]    [ Business Rules ]  [ Reports ]
+       Authentication    Complaint workflow   PDF export
+       Access control    Status management
+       Ownership scope   Validation
+              |                 |                 |
+              +-----------------+-----------------+
+                                |
+                                v
+                     +-------------------+
+                     |      SQLite       |
+                     |   node:sqlite     |
+                     |  uconnect.db      |
+                     +-------------------+
 ```
-                                 [ Browser Client ]
-                                          │
-                        Vite Proxy (:3000) / Direct HTTP
-                                          │
-                                          ▼
-                         ┌─────────────────────────────────┐
-                         │      U-Connect Go REST API      │
-                         │          (Port :8080)           │
-                         └────────────────┬────────────────┘
-                                          │
-               ┌──────────────────────────┼──────────────────────────┐
-               ▼                          ▼                          ▼
-      [ JWT Middleware ]         [ SLA Engine ]            [ Business Rules ]
-       - RBAC Scoping             - 72h Breaches            - Rule 1: Auto-Escalation
-       - Identity Masking         - Auto Priority           - Rule 2: State Transitions
-               │                          │                          │
-               └──────────────────────────┼──────────────────────────┘
-                                          │
-                                          ▼
-                                ┌───────────────────┐
-                                │   SQLite + GORM   │
-                                │   (uconnect.db)   │
-                                └───────────────────┘
-```
+
+The current implementation uses:
+
+* **Frontend:** React + TypeScript + Vite
+* **Backend:** Node.js + Express + TypeScript
+* **Database:** SQLite using Node.js `node:sqlite`
+* **Authentication:** JWT
+* **Password hashing:** bcryptjs
+* **Validation:** Zod
+* **File uploads:** Multer
+* **PDF reports:** PDFKit
 
 ---
 
-## Key Features & Business Rules
+## Key Features
 
-1. **Automated Escalation (Rule 1)**: Automatically escalates Exam Hall and Safety grievances to `high` priority; overrides with `critical` when urgent emergency keywords (*emergency*, *urgent*, *critical*, *immediate*, *danger*) are detected.
-2. **Strict Transition State Machine (Rule 2)**: Enforces complaint workflow progression:
-   - `pending` &rarr; `in-progress`, `resolved`, `closed`
-   - `in-progress` &rarr; `resolved`, `closed`, `pending`
-   - `resolved` &rarr; `closed`
-   - `closed` &rarr; terminal (no further transitions permitted)
-3. **SLA Breach Monitoring (Rule 3)**: Automatic tracking of complaints open beyond 72 hours with batch escalation and visual warning indicators.
-4. **Anonymous Student Masking (Rule 4)**: Masks student identity from departmental staff responses while maintaining administrative oversight.
-5. **Threaded Discussion Activity (Rule 5)**: Real-time discussion logs on complaints with verified role badges (`Student`, `Staff`, `Admin`).
-6. **OpenAI-Inspired Design Language**: Quiet, authentic, human-centric aesthetic with warm neutrals (`#fbfbfb`, `#18181b`), zero emojis, and clean vector geometry via `lucide-react`.
+### Authentication and Access Control
+
+* Username/password authentication
+* JWT-based authentication
+* Role-based access control
+* Student ownership restrictions
+* Active/inactive user accounts
+* 30-minute inactivity logout
+* Temporary account lockout after repeated failed login attempts
+
+### Complaint Management
+
+* Submit complaints with title, description, category, and location
+* Unique complaint reference numbers
+* Complaint status tracking
+* Department assignment
+* Complaint editing
+* Administrative complaint deletion
+* Complaint progress comments
+* Complaint history
+* Complaint priority handling
+* Anonymous complaint identity masking
+* Complaint filtering and pagination
+
+### Attachments
+
+* Upload supporting files to complaints
+* View complaint attachments
+* File-size validation
+* Uploaded files stored outside the Git repository
+
+### Feedback
+
+* Students can provide feedback after resolution
+* 1–5 complaint rating
+* Feedback comments
+
+### Administration
+
+* Create user accounts
+* Update users
+* Change user roles
+* Deactivate users
+* Create, update, and delete departments
+* Institutional complaint oversight
+
+### Reporting
+
+* Complaint summaries by date range
+* Complaints grouped by category
+* Complaints grouped by status
+* PDF complaint report export
+* Dashboard statistics
+
+### Notifications
+
+* Complaint-related notifications
+* Mark individual notifications as read
+* Mark all notifications as read
 
 ---
 
 ## Tech Stack
 
-| Layer | Technologies | Purpose |
-|---|---|---|
-| **Frontend** | React 19, TypeScript, Vite, Lucide Icons | Responsive SPA, lifecycle stepper, dashboard |
-| **Backend** | Go 1.21+, Gin, GORM | High-throughput RESTful API (<2s query latency) |
-| **Database** | SQLite3 (`SetMaxOpenConns(1)`) | Relational persistence with foreign keys |
-| **Security** | JWT (`golang-jwt/jwt/v5`), Bcrypt (cost 14) | Stateless authentication & password hashing |
-| **Orchestration** | Docker, Docker Compose | Containerized local and staging deployment |
+| Layer                | Technologies                             | Purpose                                      |
+| -------------------- | ---------------------------------------- | -------------------------------------------- |
+| **Frontend**         | React 19, TypeScript, Vite, Lucide React | Responsive web application                   |
+| **Backend**          | Node.js, Express 5, TypeScript           | REST API and business logic                  |
+| **Database**         | SQLite, `node:sqlite`                    | Relational data persistence                  |
+| **Authentication**   | JWT, bcryptjs                            | Authentication and password security         |
+| **Validation**       | Zod                                      | Request validation                           |
+| **File Uploads**     | Multer                                   | Complaint attachments                        |
+| **Reports**          | PDFKit                                   | PDF report generation                        |
+| **Development**      | npm, tsx                                 | Dependency management and development server |
+| **Containerisation** | Docker, Docker Compose                   | Local/deployment support                     |
 
 ---
 
 ## Quickstart Guide
 
 ### 1. Prerequisites
-- **Go 1.21+**
-- **Node.js v20+** and **npm**
-- **Git**
 
-### 2. Clone Repository
+Install:
+
+* **Node.js 22 or later**
+* **npm 10 or later**
+* **Git**
+
+Check your versions:
+
 ```bash
-git clone https://github.com/Moon9t/U-Connect.git
-cd U-Connect
+node --version
+npm --version
+git --version
 ```
-
-### 3. Start the Backend (Option A: Node.js / TypeScript or Option B: Go)
-
-#### Option A: Node.js Backend (TypeScript & Express)
-```bash
-cd backend-node
-npm install
-npm run seed       # Seeds 520 complaints & 20 accounts
-npm run dev        # Starts server on http://localhost:8080
-# Run automated tests:
-npm test
-```
-
-#### Option B: Go Backend
-```bash
-cd backend
-cp .env.example .env
-go mod tidy
-go run cmd/api/main.go --seed  # Starts server on http://localhost:8080
-```
-*Backend runs on `http://localhost:8080`. Health check: `http://localhost:8080/health`*
-
-### 4. Start the Frontend
-```bash
-cd ../frontend
-npm install
-npm run dev
-```
-*Frontend runs on `http://localhost:3000` with automated proxy to the backend API (`http://127.0.0.1:8080`).*
 
 ---
 
-## Demo Accounts & Seeded Credentials
+### 2. Clone the Repository
 
-All accounts share the default password: **`password123`**
+```bash
+git clone <repository-url>
+cd U-Connect
+```
 
-| Role | Email | Access Scope |
-|---|---|---|
-| **Admin** | `admin@test.com` | Full institutional oversight, user roles, departments, CSV export |
-| **Staff** | `staff1@uconnect.edu` | Departmental ticket assignment, status progression, responses |
-| **Student** | `student1@uconnect.edu` | Personal dashboard, grievance submission, anonymous toggle |
+Replace `<repository-url>` with the repository URL used by the team.
 
-> [!TIP]
-> The login screen includes **Instant Demo Sign-In** pills to switch roles in 1 click without retyping credentials.
+---
+
+### 3. Start the Backend
+
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+The backend runs on:
+
+```text
+http://localhost:8080
+```
+
+Health check:
+
+```text
+http://localhost:8080/health
+```
+
+The backend uses the SQLite database located at:
+
+```text
+backend/uconnect.db
+```
+
+The database file is intentionally ignored by Git.
+
+---
+
+### 4. Start the Frontend
+
+Open another terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend runs on:
+
+```text
+http://localhost:3000
+```
+
+The Vite development server proxies API requests to the backend on port `8080`.
+
+---
+
+## Production Build
+
+### Backend
+
+```bash
+cd backend
+npm run build
+npm start
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm run build
+```
+
+---
+
+## API Overview
+
+### Authentication
+
+```text
+POST /api/auth/login
+POST /api/auth/register
+POST /api/auth/logout
+```
+
+### Complaints
+
+```text
+POST   /api/complaints
+GET    /api/complaints
+GET    /api/complaints/:id
+PUT    /api/complaints/:id
+DELETE /api/complaints/:id
+PUT    /api/complaints/:id/assign
+PUT    /api/complaints/:id/status
+POST   /api/complaints/:id/comments
+GET    /api/complaints/:id/comments
+POST   /api/complaints/:id/attachments
+GET    /api/complaints/:id/attachments
+POST   /api/complaints/:id/feedback
+GET    /api/complaints/:id/feedback
+```
+
+### Reports
+
+```text
+GET /api/reports/complaints
+GET /api/reports/complaints/by-category
+GET /api/reports/complaints/by-status
+GET /api/reports/complaints/export/pdf
+```
+
+### Administration
+
+```text
+GET  /api/admin/users
+POST /api/admin/users
+PUT  /api/admin/users/:id
+PUT  /api/admin/users/:id/role
+PUT  /api/admin/users/:id/deactivate
+
+GET    /api/departments
+POST   /api/admin/departments
+PUT    /api/admin/departments/:id
+DELETE /api/admin/departments/:id
+```
+
+### Dashboard and Notifications
+
+```text
+GET /api/dashboard
+
+GET /api/notifications
+PUT /api/notifications/read-all
+PUT /api/notifications/:id/read
+```
+
+### Health
+
+```text
+GET /health
+```
+
+---
+
+## Database
+
+UConnect uses SQLite through Node.js's built-in `node:sqlite` module.
+
+The database schema contains the following primary entities:
+
+```text
+users
+roles
+departments
+categories
+complaints
+complaint_updates
+attachments
+feedback
+audit_log
+```
+
+The application performs schema initialization and migration-safe backfills when the backend starts.
+
+The migration preserves existing complaint and user data while adding fields required by the current SDD, including:
+
+* `username`
+* `is_active`
+* `reference_number`
+* `location`
+
+It also creates the supporting SDD entities for:
+
+* roles
+* categories
+* complaint updates
+* attachments
+* feedback
+* audit logging
+
+The local SQLite database and SQLite WAL runtime files are excluded from Git.
 
 ---
 
 ## Repository Structure
 
-```
+```text
 U-Connect/
 ├── .github/
-│   └── CODEOWNERS                  # Subsystem code ownership rules
+│   └── CODEOWNERS
+│
 ├── backend/
-│   ├── cmd/api/main.go             # Backend entrypoint
-│   ├── internal/
-│   │   ├── config/                 # DB connection & SQLite concurrency setup
-│   │   ├── handlers/               # Gin route controllers
-│   │   ├── middleware/             # JWT verification & RBAC authorization
-│   │   ├── models/                 # Domain entities (User, Complaint, Department, Comment)
-│   │   ├── repositories/           # GORM data access layer
-│   │   ├── routes/                 # Endpoint routing & CORS setup
-│   │   └── services/               # Business logic & SLA state machines
-│   ├── migrations/                 # Schema auto-migration & seeder
-│   ├── pkg/utils/                  # JWT, bcrypt, and standard response helpers
-│   └── tests/                      # Unit, integration, and system tests
+│   ├── src/
+│   │   ├── config/
+│   │   ├── middleware/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   ├── utils/
+│   │   ├── validators/
+│   │   ├── app.ts
+│   │   └── server.ts
+│   │
+│   ├── uploads/
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── tsconfig.json
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── .env.example
+│   ├── .gitignore
+│   └── README.md
+│
 ├── frontend/
 │   ├── src/
-│   │   ├── components/             # Layout (Navbar, Sidebar), Common (Badge, Modal, Toast)
-│   │   ├── context/                # AuthContext & Session management
-│   │   ├── pages/                  # Login, StudentDashboard, SubmitComplaint, AdminManagement
-│   │   ├── services/               # API clients for complaints, auth, departments, metrics
-│   │   ├── types/                  # Strict TypeScript API models
-│   │   ├── App.tsx                 # Root layout & route coordinator
-│   │   └── index.css               # OpenAI-inspired design tokens
+│   │   ├── components/
+│   │   ├── context/
+│   │   ├── pages/
+│   │   ├── services/
+│   │   ├── types/
+│   │   ├── App.tsx
+│   │   └── index.css
 │   ├── package.json
-│   └── vite.config.ts              # Port 3000 & API proxy configuration
+│   └── vite.config.ts
+│
 ├── docs/
-│   └── ARCHITECTURE.md             # System design & SLA state machine specifications
-├── CONTRIBUTING.md                  # 5-person team workflow & PR guidelines
-└── README.md                       # Project documentation
+├── CONTRIBUTING.md
+└── README.md
 ```
 
 ---
 
-## Engineering Team & Governance
+## Development Workflow
 
-- **Backend Lead & Core Architect**: **@Moon9t** (Code owner for `/backend/`)
-- For contribution workflows, PR guidelines, and branch strategies, refer to [**`CONTRIBUTING.md`**](CONTRIBUTING.md).
-- For subsystem ownership rules, refer to [**`.github/CODEOWNERS`**](.github/CODEOWNERS).
+UConnect uses a feature-branch workflow.
+
+Example:
+
+```bash
+git checkout -b feature/complaint-feedback
+```
+
+Before pushing changes:
+
+```bash
+cd backend
+npm run build
+
+cd ../frontend
+npm run build
+```
+
+Changes should be tested against the relevant functionality before opening a pull request.
+
+For contribution rules, branch naming, commit conventions, and review requirements, see:
+
+```text
+CONTRIBUTING.md
+```
+
+---
+
+## Architecture Consistency
+
+The current implementation is intentionally aligned with the project's SRS and SDD.
+
+The approved technology architecture is:
+
+```text
+React + TypeScript + Vite
+            |
+            v
+Node.js + Express + TypeScript
+            |
+            v
+SQLite
+```
+
+
+---
+
+## Project Scope
+
+UConnect focuses on university complaint and grievance management, including:
+
+* complaint submission
+* complaint tracking
+* complaint assignment
+* status management
+* progress updates
+* supporting attachments
+* feedback
+* user administration
+* reporting
+* notifications
+
+The system does not provide:
+
+* a dedicated mobile application
+* emergency services
+* online payments
+* AI-based automatic complaint resolution
+* external organization complaint management
+* government-system integration
+* academic results management
+* admissions or registration management
+* GPS-based emergency tracking
+* social-media integration
+
+---
+
+## Engineering Team
+
+The project follows the team's contribution and review workflow documented in:
+
+```text
+CONTRIBUTING.md
+```
+
+Backend and frontend changes should be reviewed and tested before being merged into the protected main branch.

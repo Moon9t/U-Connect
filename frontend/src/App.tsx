@@ -25,6 +25,7 @@ const MainLayout: React.FC = () => {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [notificationComplaintId, setNotificationComplaintId] = useState<number | undefined>();
 
   // Set default tab based on role
   useEffect(() => {
@@ -90,10 +91,11 @@ const MainLayout: React.FC = () => {
         return (
           <MyComplaintsPage
             onNavigateToSubmit={() => setActiveTab('submit-complaint')}
+            initialComplaintId={notificationComplaintId}
           />
         );
       case 'complaints-mgmt':
-        return <AdminComplaintManagementPage />;
+        return <AdminComplaintManagementPage initialComplaintId={notificationComplaintId} />;
       case 'users':
         return <UsersManagementPage />;
       case 'departments':
@@ -133,6 +135,10 @@ const MainLayout: React.FC = () => {
           onNavigateToProfile={() => setActiveTab('profile')}
           onToggleMobileSidebar={() => setMobileSidebarOpen((prev) => !prev)}
           onOpenSearch={() => setIsSearchModalOpen(true)}
+          onNavigateToComplaints={(complaintId) => {
+            setNotificationComplaintId(complaintId || undefined);
+            setActiveTab(role === 'student' ? 'my-complaints' : 'complaints-mgmt');
+          }}
         />
         <main style={{ flex: 1, overflowY: 'auto' }}>{renderContent()}</main>
       </div>

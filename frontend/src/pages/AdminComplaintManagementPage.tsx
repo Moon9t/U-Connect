@@ -42,7 +42,11 @@ const STATUSES: { value: string; label: string }[] = [
   { value: 'closed', label: 'Closed' },
 ];
 
-export const AdminComplaintManagementPage: React.FC = () => {
+interface AdminComplaintManagementPageProps {
+  initialComplaintId?: number;
+}
+
+export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPageProps> = ({ initialComplaintId }) => {
   const { role } = useAuth();
   const { success, error } = useToast();
 
@@ -84,6 +88,16 @@ export const AdminComplaintManagementPage: React.FC = () => {
   useEffect(() => {
     loadComplaints();
   }, [page, debouncedSearch, selectedCategory, selectedStatus, selectedDepartment, onlySlaEscalated]);
+
+  useEffect(() => {
+    if (!initialComplaintId) return;
+
+    complaintService.getComplaint(initialComplaintId).then((complaint) => {
+      handleOpenDetail(complaint);
+    }).catch(() => {
+      // The complaint may no longer be available to the current user.
+    });
+  }, [initialComplaintId]);
 
   const loadDepartments = async () => {
     try {
@@ -128,6 +142,7 @@ export const AdminComplaintManagementPage: React.FC = () => {
         sla_escalated: onlySlaEscalated ? true : undefined,
       });
       success('Audit report exported to PDF successfully');
+
     } catch (err: any) {
       error(err.message || 'Failed to export PDF');
     } finally {
@@ -145,7 +160,16 @@ export const AdminComplaintManagementPage: React.FC = () => {
     setPage(1);
   };
 
-  const filteredComplaints = complaints;
+  // Client-side quick search filtering by Ref No, Title or Complainant
+  const filteredComplaints = complaints.filter((c) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    const refNo = c.reference_number.toLowerCase();
+    const titleMatch = c.title.toLowerCase().includes(query);
+    const userMatch = c.user?.name ? c.user.name.toLowerCase().includes(query) : false;
+    return refNo.includes(query) || titleMatch || userMatch;
+  });
+
 
   const handleOpenDetail = (complaint: Complaint) => {
     setActiveComplaint(complaint);
@@ -190,8 +214,7 @@ export const AdminComplaintManagementPage: React.FC = () => {
             onClick={handleExportPDF}
             disabled={isExporting}
             className="btn btn-secondary"
-            title="Download PDF Audit Report"
-          >
+title="Download PDF Report">
             <Download size={15} />
             <span>{isExporting ? 'Generating PDF...' : 'Export PDF'}</span>
           </button>
@@ -385,7 +408,7 @@ export const AdminComplaintManagementPage: React.FC = () => {
                 </tr>
               ) : (
                 filteredComplaints.map((c) => {
-                  const refNo = `UC-2025-${c.id.toString().padStart(3, '0')}`;
+                  const refNo = c.reference_number;
                   const formattedDate = new Date(c.created_at).toLocaleDateString('en-GB', {
                     day: 'numeric',
                     month: 'short',
