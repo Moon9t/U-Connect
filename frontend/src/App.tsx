@@ -14,10 +14,17 @@ import { AnalyticsReportsPage } from './pages/AnalyticsReportsPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { FeedbackPage } from './pages/FeedbackPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { QuickSearchModal } from './components/common/QuickSearchModal';
+import { ComplaintDetailModal } from './components/complaints/ComplaintDetailModal';
+import { Complaint } from './types/api';
 
 const MainLayout: React.FC = () => {
   const { isAuthenticated, role, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [notificationComplaintId, setNotificationComplaintId] = useState<number | undefined>();
 
   // Set default tab based on role
@@ -28,6 +35,18 @@ const MainLayout: React.FC = () => {
       setActiveTab('dashboard');
     }
   }, [role]);
+
+  // Global search shortcut (⌘K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   if (isLoading) {
     return (
@@ -101,13 +120,21 @@ const MainLayout: React.FC = () => {
 
   return (
     <div className="app-layout">
-      {/* Sidebar matching UI.png */}
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      {/* Sidebar with mobile drawer support */}
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        mobileOpen={mobileSidebarOpen}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
+      />
 
       {/* Main Content Area */}
       <div className="main-content">
         <Navbar
+          activeTab={activeTab}
           onNavigateToProfile={() => setActiveTab('profile')}
+          onToggleMobileSidebar={() => setMobileSidebarOpen((prev) => !prev)}
+          onOpenSearch={() => setIsSearchModalOpen(true)}
           onNavigateToComplaints={(complaintId) => {
             setNotificationComplaintId(complaintId || undefined);
             setActiveTab(role === 'student' ? 'my-complaints' : 'complaints-mgmt');
@@ -115,6 +142,36 @@ const MainLayout: React.FC = () => {
         />
         <main style={{ flex: 1, overflowY: 'auto' }}>{renderContent()}</main>
       </div>
+
+      {/* Global Quick Search / Command Palette */}
+      <QuickSearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        userRole={role}
+        onNavigateTab={(tab) => {
+          setActiveTab(tab as NavTab);
+          setIsSearchModalOpen(false);
+        }}
+        onSelectComplaint={(c) => {
+          setSelectedComplaint(c);
+          setIsDetailModalOpen(true);
+        }}
+      />
+
+      {/* Global Complaint Detail Modal from Search */}
+      {selectedComplaint && (
+        <ComplaintDetailModal
+          complaint={selectedComplaint}
+          isOpen={isDetailModalOpen}
+          onClose={() => {
+            setIsDetailModalOpen(false);
+            setSelectedComplaint(null);
+          }}
+          onStatusUpdated={() => {
+            // refresh active tab
+          }}
+        />
+      )}
     </div>
   );
 };

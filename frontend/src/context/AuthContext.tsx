@@ -70,8 +70,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const switchDemoUser = async (demoRole: 'admin' | 'staff' | 'student') => {
-    const username = demoRole === 'admin' ? 'admin' : demoRole === 'staff' ? 'staff1' : 'student1';
-    await login(username, 'password123');
+    let identifier = 'student1@uconnect.edu';
+    if (demoRole === 'admin') identifier = 'admin@test.com';
+    else if (demoRole === 'staff') identifier = 'staff1@uconnect.edu';
+
+    await login(identifier, 'password123');
   };
 
   return (

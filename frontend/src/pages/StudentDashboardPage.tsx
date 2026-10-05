@@ -5,6 +5,8 @@ import { dashboardService } from '../services/dashboard.service';
 import { Complaint, DashboardStats } from '../types/api';
 import { StatusBadge, PriorityBadge } from '../components/common/Badge';
 import { ComplaintDetailModal } from '../components/complaints/ComplaintDetailModal';
+import { SkeletonTable } from '../components/common/Skeleton';
+import { EmptyState } from '../components/common/EmptyState';
 import {
   FileText,
   Clock,
@@ -313,14 +315,19 @@ export const StudentDashboardPage: React.FC<StudentDashboardPageProps> = ({
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#a1a1aa' }}>
-                    Loading complaints...
+                  <td colSpan={6} style={{ padding: '24px 12px' }}>
+                    <SkeletonTable rows={4} columns={6} />
                   </td>
                 </tr>
               ) : recentComplaints.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '36px', color: '#a1a1aa' }}>
-                    No complaints recorded yet. Click "+ Submit Complaint" to share your feedback.
+                  <td colSpan={6} style={{ padding: '16px' }}>
+                    <EmptyState
+                      title="No grievances submitted yet"
+                      description="You haven't logged any complaints. Your active submissions and their investigation lifecycle will appear here."
+                      actionLabel="Submit your first grievance"
+                      onAction={onNavigateToSubmit}
+                    />
                   </td>
                 </tr>
               ) : (

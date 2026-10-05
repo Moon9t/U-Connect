@@ -6,6 +6,9 @@ import { departmentService } from '../services/department.service';
 import { Complaint, Department, ComplaintCategory } from '../types/api';
 import { StatusBadge, PriorityBadge } from '../components/common/Badge';
 import { ComplaintDetailModal } from '../components/complaints/ComplaintDetailModal';
+import { SkeletonTable } from '../components/common/Skeleton';
+import { EmptyState } from '../components/common/EmptyState';
+import { OperationalPulseWidget } from '../components/common/OperationalPulseWidget';
 import {
   Search,
   Download,
@@ -19,6 +22,7 @@ import {
   Building,
   Tag,
   Shield,
+  Paperclip,
 } from 'lucide-react';
 
 const CATEGORIES: ComplaintCategory[] = [
@@ -67,13 +71,23 @@ export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPage
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
 
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
   useEffect(() => {
     loadDepartments();
   }, []);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
     loadComplaints();
-  }, [page, selectedCategory, selectedStatus, selectedDepartment, onlySlaEscalated]);
+  }, [page, debouncedSearch, selectedCategory, selectedStatus, selectedDepartment, onlySlaEscalated]);
 
   useEffect(() => {
     if (!initialComplaintId) return;
@@ -100,6 +114,7 @@ export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPage
       const res = await complaintService.getComplaints({
         page,
         page_size: pageSize,
+        search: debouncedSearch.trim() || undefined,
         category: selectedCategory || undefined,
         status: selectedStatus || undefined,
         department_id: selectedDepartment ? Number(selectedDepartment) : undefined,
@@ -119,8 +134,15 @@ export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPage
   const handleExportPDF = async () => {
     setIsExporting(true);
     try {
-      await complaintService.exportReportPDF();
-      success('Complaint report exported to PDF successfully');
+      await complaintService.exportPDF({
+        search: debouncedSearch.trim() || undefined,
+        category: selectedCategory || undefined,
+        status: selectedStatus || undefined,
+        department_id: selectedDepartment ? Number(selectedDepartment) : undefined,
+        sla_escalated: onlySlaEscalated ? true : undefined,
+      });
+      success('Audit report exported to PDF successfully');
+
     } catch (err: any) {
       error(err.message || 'Failed to export PDF');
     } finally {
@@ -130,6 +152,7 @@ export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPage
 
   const handleResetFilters = () => {
     setSearchQuery('');
+    setDebouncedSearch('');
     setSelectedCategory('');
     setSelectedStatus('');
     setSelectedDepartment('');
@@ -146,6 +169,7 @@ export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPage
     const userMatch = c.user?.name ? c.user.name.toLowerCase().includes(query) : false;
     return refNo.includes(query) || titleMatch || userMatch;
   });
+
 
   const handleOpenDetail = (complaint: Complaint) => {
     setActiveComplaint(complaint);
@@ -190,10 +214,9 @@ export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPage
             onClick={handleExportPDF}
             disabled={isExporting}
             className="btn btn-secondary"
-            title="Download PDF Report"
-          >
+title="Download PDF Report">
             <Download size={15} />
-            <span>{isExporting ? 'Exporting...' : 'Export PDF'}</span>
+            <span>{isExporting ? 'Generating PDF...' : 'Export PDF'}</span>
           </button>
 
           <button
@@ -207,6 +230,13 @@ export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPage
           </button>
         </div>
       </div>
+
+      {/* Operational Pulse Telemetry & Live Event Stream */}
+      <OperationalPulseWidget
+        totalMonitored={total}
+        slaBreachCount={40}
+        averageHours={24.6}
+      />
 
       {/* Filter Toolbar */}
       <div
@@ -355,14 +385,25 @@ export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPage
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                    Loading institutional grievance records...
+                  <td colSpan={8} style={{ padding: '24px 12px' }}>
+                    <SkeletonTable rows={6} columns={8} />
                   </td>
                 </tr>
               ) : filteredComplaints.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                    No matching complaints found. Try clearing your filters or search term.
+                  <td colSpan={8} style={{ padding: '16px' }}>
+                    <EmptyState
+                      title="No matching complaints found"
+                      description="No records match your active category, priority, status, or search filters. Try resetting filters."
+                      actionLabel="Reset Filters"
+                      onAction={() => {
+                        setSearchQuery('');
+                        setSelectedCategory('');
+                        setSelectedStatus('');
+                        setSelectedDepartment('');
+                        setOnlySlaEscalated(false);
+                      }}
+                    />
                   </td>
                 </tr>
               ) : (
@@ -398,6 +439,25 @@ export const AdminComplaintManagementPage: React.FC<AdminComplaintManagementPage
                           <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                             {c.title}
                           </span>
+                          {c.attachments && c.attachments.length > 0 && (
+                            <span
+                              title={`${c.attachments.length} attachment(s)`}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '2px',
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                backgroundColor: '#eff6ff',
+                                color: '#2563eb',
+                                fontSize: '0.7rem',
+                                fontWeight: 700,
+                              }}
+                            >
+                              <Paperclip size={10} />
+                              {c.attachments.length}
+                            </span>
+                          )}
                           {c.priority === 'critical' && <PriorityBadge priority="critical" showIcon={false} />}
                         </div>
                       </td>

@@ -22,6 +22,14 @@ export interface User {
   updated_at?: string;
 }
 
+export interface CreateUserDTO {
+  name: string;
+  email: string;
+  password?: string;
+  role: UserRole;
+  department_id?: number | null;
+}
+
 export type ComplaintCategory =
   | 'IT'
   | 'Facilities'
@@ -46,12 +54,16 @@ export interface Comment {
 }
 
 export interface Attachment {
-  attachment_id: number;
+  id: number;
+  attachment_id?: number;
   complaint_id: number;
   file_name: string;
-  file_path: string;
+  file_path?: string;
+  file_size?: number;
   file_type: string;
-  uploaded_at: string;
+  file_url?: string;
+  uploaded_at?: string;
+  created_at?: string;
 }
 
 export interface Feedback {
@@ -146,6 +158,7 @@ export interface CreateComplaintPayload {
   location: string;
   department_id: number;
   anonymous?: boolean;
+  files?: File[];
 }
 
 export interface UpdateComplaintPayload {
@@ -162,6 +175,7 @@ export interface ComplaintFilters {
   priority?: string;
   department_id?: number;
   sla_escalated?: boolean;
+  search?: string;
   page?: number;
   page_size?: number;
 }
