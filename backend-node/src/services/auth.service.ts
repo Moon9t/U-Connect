@@ -63,8 +63,18 @@ export class AuthService {
     return { user, token };
   }
 
-  async login(email: string, password: string): Promise<{ user: Partial<User>; token: string }> {
-    const row = this.db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
+  async login(identifier: string, password: string): Promise<{ user: Partial<User>; token: string }> {
+    const cols = this.db.prepare('PRAGMA table_info(users)').all() as Array<{ name: string }>;
+    let row: any;
+    if (cols.some((c) => c.name === 'username')) {
+      row = this.db
+        .prepare('SELECT * FROM users WHERE lower(email) = lower(?) OR lower(username) = lower(?)')
+        .get(identifier, identifier) as any;
+    } else {
+      row = this.db
+        .prepare('SELECT * FROM users WHERE lower(email) = lower(?) OR lower(email) LIKE lower(?)')
+        .get(identifier, `${identifier}@%`) as any;
+    }
     if (!row) {
       throw new Error('invalid email or password');
     }
@@ -81,6 +91,7 @@ export class AuthService {
     const user: Partial<User> = {
       id: Number(row.id),
       name: row.name,
+      username: row.username || (row.email.includes('@') ? row.email.split('@')[0] : row.email),
       email: row.email,
       role: row.role as Role,
       department_id: row.department_id ? Number(row.department_id) : null,

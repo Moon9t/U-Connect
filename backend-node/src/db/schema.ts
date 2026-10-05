@@ -98,4 +98,18 @@ export function runMigrations(db: DatabaseSync): void {
   } catch {
     // Column already exists or table was just created with column
   }
+
+  try {
+    const userCols = db.prepare('PRAGMA table_info(users)').all() as Array<{ name: string }>;
+    if (!userCols.some((c) => c.name === 'username')) {
+      db.exec('ALTER TABLE users ADD COLUMN username TEXT;');
+      db.exec(`UPDATE users SET username = CASE
+        WHEN email = 'admin@test.com' THEN 'admin'
+        ELSE substr(email, 1, instr(email, '@') - 1)
+      END WHERE username IS NULL OR username = '';`);
+    }
+    db.exec('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);');
+  } catch {
+    // Column already exists or table was just created with column
+  }
 }

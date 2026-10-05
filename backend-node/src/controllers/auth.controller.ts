@@ -29,13 +29,14 @@ export class AuthController {
 
   login = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { email, password } = req.body;
-      if (!email || !password) {
-        sendError(res, 'email and password are required', 400);
+      const identifier = req.body.email || req.body.username;
+      const { password } = req.body;
+      if (!identifier || !password) {
+        sendError(res, 'email or username and password are required', 400);
         return;
       }
 
-      const result = await this.authService.login(email, password);
+      const result = await this.authService.login(identifier, password);
       sendSuccess(res, result, 200);
     } catch (err: any) {
       const status =

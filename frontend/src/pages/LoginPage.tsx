@@ -42,10 +42,15 @@ export const LoginPage: React.FC = () => {
 
   const handleQuickLogin = async (demoUsername: string) => {
     setIsLoading(true);
-    setUsername(demoUsername);
+    let identifier = demoUsername;
+    if (demoUsername === 'admin') identifier = 'admin@test.com';
+    else if (demoUsername === 'staff1') identifier = 'staff1@uconnect.edu';
+    else if (demoUsername === 'student1') identifier = 'student1@uconnect.edu';
+
+    setUsername(identifier);
     setPassword('password123');
     try {
-      await login(demoUsername, 'password123');
+      await login(identifier, 'password123');
       success(`Authenticated as ${demoUsername}`);
     } catch (err: any) {
       error(err.message || 'Login failed');
@@ -200,7 +205,7 @@ export const LoginPage: React.FC = () => {
               </span>
               <input
                 type="text"
-                placeholder="University Username"
+                placeholder="University Username or Email"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required

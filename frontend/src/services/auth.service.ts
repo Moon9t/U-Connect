@@ -2,10 +2,28 @@ import { request } from './apiClient';
 import { ApiResponse, LoginResponse, User, UserRole } from '../types/api';
 
 export const authService = {
-  async login(username: string, password: string): Promise<LoginResponse> {
+  async login(identifier: string, password: string): Promise<LoginResponse> {
+    const trimmed = identifier.trim();
+    let username = trimmed;
+    let email = trimmed;
+
+    if (trimmed.toLowerCase() === 'admin') {
+      email = 'admin@test.com';
+      username = 'admin';
+    } else if (trimmed.toLowerCase() === 'staff' || trimmed.toLowerCase() === 'staff1') {
+      email = 'staff1@uconnect.edu';
+      username = 'staff1';
+    } else if (trimmed.toLowerCase() === 'student' || trimmed.toLowerCase() === 'student1') {
+      email = 'student1@uconnect.edu';
+      username = 'student1';
+    } else if (trimmed.includes('@')) {
+      email = trimmed;
+      username = trimmed.split('@')[0];
+    }
+
     const res = await request<ApiResponse<LoginResponse>>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, email, password }),
     });
     if (res.data?.token) {
       localStorage.setItem('uconnect_token', res.data.token);

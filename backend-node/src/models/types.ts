@@ -36,6 +36,7 @@ export interface Department {
 export interface User {
   id: number;
   name: string;
+  username?: string;
   email: string;
   password_hash?: string;
   role: Role;

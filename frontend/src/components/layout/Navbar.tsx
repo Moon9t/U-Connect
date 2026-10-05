@@ -254,6 +254,45 @@ export const Navbar: React.FC<NavbarProps> = ({
           gap: '16px',
         }}
       >
+        {/* Quick Demo Role Switcher */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            backgroundColor: '#eff6ff',
+            borderRadius: '8px',
+            padding: '3px',
+            gap: '2px',
+            border: '1px solid #dbeafe',
+          }}
+        >
+          {(["student", "staff", "admin"] as const).map((r) => {
+            const isActive = role === r;
+            return (
+              <button
+                key={r}
+                type="button"
+                onClick={() => switchDemoUser(r)}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: isActive ? '#ffffff' : 'transparent',
+                  color: isActive ? '#1e40af' : '#64748b',
+                  boxShadow: isActive ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                  cursor: 'pointer',
+                  textTransform: 'capitalize',
+                  fontSize: '0.75rem',
+                  fontWeight: isActive ? 600 : 500,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {r}
+              </button>
+            );
+          })}
+        </div>
+
         <div style={{ position: 'relative' }}>
           <button
             type="button"
