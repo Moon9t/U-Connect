@@ -130,7 +130,7 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
 
   if (!complaint) return null;
 
-  const refNumber = complaint.reference_number;
+  const refNumber = complaint.reference_number || `UC-2025-${complaint.id.toString().padStart(3, '0')}`;
   const isStaffOrAdmin = role === 'admin' || role === 'staff';
 
   const getAvailableTransitions = (current: ComplaintStatus) => {
