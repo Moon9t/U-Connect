@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Complaint, Comment, ComplaintStatus, Attachment } from '../../types/api';
+import { Complaint, Comment, ComplaintStatus, Attachment, Department } from '../../types/api';
 import { complaintService } from '../../services/complaint.service';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../common/Toast';
@@ -8,6 +8,7 @@ import { ConfirmModal } from '../common/ConfirmModal';
 import { StatusBadge, PriorityBadge, SlaBadge } from '../common/Badge';
 import { LifecycleStepper } from './LifecycleStepper';
 import { Skeleton } from '../common/Skeleton';
+import { departmentService } from '../../services/department.service';
 import {
   Calendar,
   Building,
@@ -50,7 +51,18 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
   const [pendingStatusTarget, setPendingStatusTarget] = useState<string>('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [selectedDepartment, setSelectedDepartment] = useState<number | ''>('');
+  const [isAssigning, setIsAssigning] = useState(false);
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
+    const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const attachInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -59,6 +71,7 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
       setAttachments(complaint.attachments || []);
       loadComments(complaint.id);
       loadComplaintDetails(complaint.id);
+      departmentService.getDepartments().then(setDepartments).catch(() => {});
     }
   }, [complaint, isOpen]);
 
@@ -132,8 +145,61 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
 
   const refNumber = complaint.reference_number;
   const isStaffOrAdmin = role === 'admin' || role === 'staff';
+  const handleAssignDepartment = async () => {
+    if (!selectedDepartment) return;
+    setIsAssigning(true);
+    try {
+      await complaintService.assignComplaint(complaint.id, Number(selectedDepartment));
+      success('Department assigned successfully');
+      if (onStatusUpdated) onStatusUpdated();
+      onClose();
+    } catch (err: any) {
+      error(err.message || 'Failed to assign department');
+    } finally {
+      setIsAssigning(false);
+    }
+};
+    const openEdit = () => {
+    setEditTitle(complaint.title);
+    setEditDescription(complaint.description);
+    setEditCategory(complaint.category || '');
+    setEditLocation(complaint.location || '');
+    setIsEditing(true);
+  };
 
-  const getAvailableTransitions = (current: ComplaintStatus) => {
+  const handleSaveEdit = async () => {
+    setIsSavingEdit(true);
+    try {
+      await complaintService.updateComplaint(complaint.id, {
+        title: editTitle,
+        description: editDescription,
+        category: editCategory,
+        location: editLocation,
+      });
+      success('Complaint updated successfully');
+      if (onStatusUpdated) onStatusUpdated();
+      setIsEditing(false);
+      onClose();
+    } catch (err: any) {
+      error(err.message || 'Failed to update complaint');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await complaintService.deleteComplaint(complaint.id);
+      success('Complaint deleted successfully');
+      if (onStatusUpdated) onStatusUpdated();
+      setShowDeleteConfirm(false);
+      onClose();
+    } catch (err: any) {
+      error(err.message || 'Failed to delete complaint');
+    }
+  };
+
+const getAvailableTransitions = (current: ComplaintStatus) => {
     switch (current) {
       case 'pending':
         return ['pending', 'in-progress', 'resolved', 'closed'];
@@ -303,6 +369,47 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
                 {complaint.department?.name || 'Assigned Department'}
               </strong>
             </div>
+
+            <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '6px', justifyContent: 'flex-end', marginTop: '4px' }}>
+        <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto', marginTop: '8px' }}>
+          <button
+            className="btn btn-secondary"
+            style={{ height: '30px', fontSize: '0.75rem', padding: '0 10px' }}
+            onClick={openEdit}
+            disabled={complaint.status === 'closed'}
+          >
+            Edit
+          </button>
+          {role === 'admin' && (
+            <button
+              className="btn btn-secondary"
+              style={{ height: '30px', fontSize: '0.75rem', padding: '0 10px', color: '#dc2626', borderColor: '#fecaca' }}
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              Delete
+            </button>
+          )}
+        </div>
+        <select
+                    className="form-select"
+                    style={{ height: '30px', fontSize: '0.75rem', padding: '0 8px' }}
+                    value={selectedDepartment}
+                    onChange={(e) => setSelectedDepartment(e.target.value ? Number(e.target.value) : '')}
+                  >
+                    <option value="">Change department...</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    className="btn btn-primary"
+                    style={{ height: '30px', fontSize: '0.75rem', padding: '0 10px' }}
+                    onClick={handleAssignDepartment}
+                    disabled={!selectedDepartment || isAssigning}
+                  >
+                    {isAssigning ? '...' : 'Assign'}
+                  </button>
+               </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--neutral-600)' }}>
               <UserIcon size={14} />
@@ -701,7 +808,43 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
         </div>
       </Modal>
 
-      {/* Confirmation Modal for Destructive Actions */}
+            {isEditing && (
+        <Modal isOpen={isEditing} onClose={() => setIsEditing(false)} title="Edit Complaint">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Title</label>
+              <input className="form-input" style={{ width: '100%', height: '40px' }} value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Description</label>
+              <textarea className="form-input" style={{ width: '100%', minHeight: '100px', padding: '8px' }} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Category</label>
+              <input className="form-input" style={{ width: '100%', height: '40px' }} value={editCategory} onChange={(e) => setEditCategory(e.target.value)} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Location</label>
+              <input className="form-input" style={{ width: '100%', height: '40px' }} value={editLocation} onChange={(e) => setEditLocation(e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+              <button className="btn btn-secondary" onClick={() => setIsEditing(false)} disabled={isSavingEdit}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSaveEdit} disabled={isSavingEdit}>
+                {isSavingEdit ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
+        title="Delete Complaint"
+        message="Are you sure you want to permanently delete this complaint? This action cannot be undone."
+      />
+{/* Confirmation Modal for Destructive Actions */}
       <ConfirmModal
         isOpen={showConfirmModal}
         onClose={() => {
@@ -800,3 +943,13 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({
     </>
   );
 };
+
+
+
+
+
+
+
+
+
+

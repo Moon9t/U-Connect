@@ -27,6 +27,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
   isLoading = false,
 }) => {
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('student');
@@ -37,6 +38,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setName('');
+      setUsername('');
       setEmail('');
       setPassword('');
       setRole('student');
@@ -64,6 +66,11 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
       return;
     }
 
+    if (!username.trim()) {
+      setErrorMsg('Username is required');
+      return;
+    }
+
     if (!email.trim() || !email.includes('@')) {
       setErrorMsg('A valid institutional email is required');
       return;
@@ -72,8 +79,9 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
     try {
       await onSubmit({
         name: name.trim(),
+        username: username.trim(),
         email: email.trim().toLowerCase(),
-        password: password.trim() || undefined,
+        password: password.trim() || 'password123',
         role,
         department_id: departmentId ? Number(departmentId) : null,
       });
@@ -221,6 +229,33 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
               placeholder="e.g. Dr. Helena Vance or Alex Rivera"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+        </div>
+        {/* Username */}
+        <div>
+          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--neutral-700)', marginBottom: '6px' }}>
+            Username *
+          </label>
+          <div style={{ position: 'relative' }}>
+            <UserPlus
+              size={16}
+              style={{
+                position: 'absolute',
+                left: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: '#94a3b8',
+              }}
+            />
+            <input
+              type="text"
+              className="form-input"
+              style={{ paddingLeft: '38px', height: '40px' }}
+              placeholder="e.g. hvance"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
             />
           </div>
