@@ -75,9 +75,11 @@ describe('Unit Tests: Business Rules & State Machine', () => {
   describe('Rule 4: Anonymous Student Masking', () => {
     const mockComplaint: Complaint = {
       id: 1,
+      reference_number: 'UC-000001',
       title: 'Lab complaint',
       description: 'Broken mouse',
       category: 'IT',
+      location: 'Room 101',
       priority: 'medium',
       status: 'pending',
       anonymous: true,
