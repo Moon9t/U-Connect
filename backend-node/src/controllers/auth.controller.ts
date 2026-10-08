@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
+
 import { AuthService } from '../services/auth.service';
+
 import { sendSuccess, sendError } from '../utils/response';
 
 export class AuthController {
@@ -8,6 +10,7 @@ export class AuthController {
   register = async (req: Request, res: Response): Promise<void> => {
     try {
       const { name, email, password, role, department_id } = req.body;
+
       if (!name || !email || !password) {
         sendError(res, 'name, email, and password are required', 400);
         return;
@@ -30,20 +33,37 @@ export class AuthController {
   login = async (req: Request, res: Response): Promise<void> => {
     try {
       const identifier = req.body.email || req.body.username;
+
       const { password } = req.body;
+
       if (!identifier || !password) {
-        sendError(res, 'email or username and password are required', 400);
+        sendError(
+          res,
+          'email or username and password are required',
+          400
+        );
         return;
       }
 
-      const result = await this.authService.login(identifier, password);
+      const result = await this.authService.login(
+        identifier,
+        password
+      );
+
       sendSuccess(res, result, 200);
     } catch (err: any) {
       const status =
-        err.message === 'invalid email or password' || err.message.includes('deactivated')
+        err.message === 'invalid email or password' ||
+        err.message.includes('deactivated') ||
+        err.message.includes('account locked')
           ? 401
           : 500;
-      sendError(res, err.message || 'login failed', status);
+
+      sendError(
+        res,
+        err.message || 'login failed',
+        status
+      );
     }
   };
 }

@@ -1,0 +1,5 @@
+# Local SQLite database
+uconnect.db
+uconnect.db-journal
+uconnect.db-wal
+uconnect.db-shm

@@ -1,3 +1,4 @@
+import { startBackupScheduler } from './db/backup';
 import { getDatabase, closeDatabase } from './config/database';
 import { runMigrations } from './db/schema';
 import { seedDatabase } from './db/seeder';
@@ -12,6 +13,9 @@ async function bootstrap() {
   // Initialize DB and migrations
   const db = getDatabase();
   runMigrations(db);
+
+  // NFR06: automated database backup at least every 24 hours
+  const backupInterval = startBackupScheduler();
 
   // Check seeding condition
   const shouldSeed =
@@ -61,6 +65,7 @@ async function bootstrap() {
   const shutdown = () => {
     console.log('\nShutting down gracefully...');
     clearInterval(slaInterval);
+    clearInterval(backupInterval);
     server.close(() => {
       closeDatabase();
       console.log('Server and database connection closed.');
